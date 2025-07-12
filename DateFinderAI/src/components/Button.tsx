@@ -1,123 +1,64 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import * as Haptics from 'expo-haptics';
+'use client';
 
-interface ButtonProps {
-  title: string;
-  onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline';
-  disabled?: boolean;
-  loading?: boolean;
-  fullWidth?: boolean;
-}
+import React from 'react';
+import { cn } from '@/lib/utils';
+import { ButtonProps } from '@/types';
 
 const Button: React.FC<ButtonProps> = ({
-  title,
-  onPress,
   variant = 'primary',
+  size = 'md',
   disabled = false,
   loading = false,
-  fullWidth = false,
+  onClick,
+  children,
+  className,
+  type = 'button',
+  ...props
 }) => {
-  const handlePress = () => {
-    if (!disabled && !loading) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onPress();
-    }
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0';
+
+  const variants = {
+    primary: 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg hover:shadow-xl focus:ring-primary-500',
+    secondary: 'bg-white border-2 border-primary-200 hover:border-primary-300 text-primary-700 shadow-sm hover:shadow-md focus:ring-primary-500',
+    accent: 'bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white shadow-lg hover:shadow-xl focus:ring-accent-500',
+    outline: 'border-2 border-gray-300 hover:border-gray-400 text-gray-700 bg-transparent hover:bg-gray-50 focus:ring-gray-500',
   };
 
-  const getButtonStyle = () => {
-    const baseStyle = [styles.button, fullWidth && styles.fullWidth];
-    
-    switch (variant) {
-      case 'secondary':
-        return [...baseStyle, styles.secondary];
-      case 'outline':
-        return [...baseStyle, styles.outline];
-      default:
-        return [...baseStyle, styles.primary];
-    }
+  const sizes = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3 text-base',
+    lg: 'px-8 py-4 text-lg',
   };
 
-  const getTextStyle = () => {
-    switch (variant) {
-      case 'secondary':
-        return styles.secondaryText;
-      case 'outline':
-        return styles.outlineText;
-      default:
-        return styles.primaryText;
-    }
-  };
+  const buttonClass = cn(
+    baseStyles,
+    variants[variant],
+    sizes[size],
+    {
+      'pointer-events-none': disabled || loading,
+      'cursor-not-allowed': disabled,
+    },
+    className
+  );
 
   return (
-    <TouchableOpacity
-      style={[
-        ...getButtonStyle(),
-        disabled && styles.disabled,
-      ]}
-      onPress={handlePress}
-      activeOpacity={0.8}
+    <button
+      type={type}
+      className={buttonClass}
       disabled={disabled || loading}
+      onClick={onClick}
+      {...props}
     >
       {loading ? (
-        <ActivityIndicator 
-          color={variant === 'outline' ? '#667eea' : '#FFFFFF'} 
-          size="small" 
-        />
+        <div className="flex items-center">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+          {children}
+        </div>
       ) : (
-        <Text style={[getTextStyle(), disabled && styles.disabledText]}>
-          {title}
-        </Text>
+        children
       )}
-    </TouchableOpacity>
+    </button>
   );
 };
-
-const styles = StyleSheet.create({
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 56,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  primary: {
-    backgroundColor: '#667eea',
-  },
-  secondary: {
-    backgroundColor: '#F3F4F6',
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#667eea',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  primaryText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  outlineText: {
-    color: '#667eea',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledText: {
-    opacity: 0.5,
-  },
-});
 
 export default Button; 
