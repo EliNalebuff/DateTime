@@ -1,7 +1,13 @@
+export interface TimeSlot {
+  id: string;
+  date: string; // ISO date string (YYYY-MM-DD)
+  time: string; // Time string (HH:MM)
+  displayText: string; // Human-readable format like "Tuesday, July 15th at 7:00 PM"
+}
+
 export interface PartnerAData {
   location: string;
-  availableDays: string[];
-  preferredTime: string;
+  proposedTimes: TimeSlot[]; // Up to 5 specific date/time slots
   dateDuration: string;
   travelDistance: number;
   budget: number;
@@ -9,7 +15,8 @@ export interface PartnerAData {
   includeFood: boolean;
   includeDrinks: boolean;
   dietaryRestrictions: string;
-  cuisinePreferences: string[];
+  lovedCuisines: string[];
+  dislikedCuisines: string[];
   vibe: string[];
   physicalTouch: string;
   conversationImportant: boolean;
@@ -20,10 +27,10 @@ export interface PartnerAData {
 }
 
 export interface PartnerBData {
-  availableDays: string[];
-  preferredTime: string;
+  selectedTimeSlots: string[]; // IDs of time slots that work for Person B
   dietaryRestrictions: string;
-  cuisinePreferences: string[];
+  lovedCuisines: string[];
+  dislikedCuisines: string[];
   vibe: string[];
   dealbreakers: string[];
   alcoholPreference: string;

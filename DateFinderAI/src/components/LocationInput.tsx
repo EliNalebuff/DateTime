@@ -8,7 +8,7 @@ import { MapPin, Loader2 } from 'lucide-react';
 const LocationInput: React.FC<LocationInputProps> = ({
   value,
   onChange,
-  placeholder = 'Enter location...',
+  placeholder = 'Enter city, neighborhood, or address...',
   useLocationButton = true,
 }) => {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -32,9 +32,28 @@ const LocationInput: React.FC<LocationInputProps> = ({
 
       const { latitude, longitude } = position.coords;
       
-      // For now, just use coordinates. In a real app, you'd reverse geocode these
-      const locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-      onChange(locationString);
+      // Reverse geocode to get city name
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const city = data.address?.city || data.address?.town || data.address?.village || 
+                     data.address?.hamlet || data.display_name?.split(',')[0] || 
+                     `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          onChange(city);
+        } else {
+          // Fallback to coordinates if reverse geocoding fails
+          const locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          onChange(locationString);
+        }
+      } catch (error) {
+        console.error('Error reverse geocoding:', error);
+        const locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        onChange(locationString);
+      }
     } catch (error) {
       console.error('Error getting location:', error);
       alert('Unable to get your location. Please enter it manually.');

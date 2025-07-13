@@ -6,12 +6,12 @@ import { motion } from 'framer-motion';
 import { Heart, ArrowRight, Calendar, MapPin, Clock, Users } from 'lucide-react';
 import Button from '@/components/Button';
 import QuestionCard from '@/components/QuestionCard';
-import DayPicker from '@/components/DayPicker';
+import TimeSlotSelector from '@/components/TimeSlotSelector';
 import MultiSelectChips from '@/components/MultiSelectChips';
 import Toggle from '@/components/Toggle';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ErrorMessage from '@/components/ErrorMessage';
-import { PartnerBData } from '@/types';
+import { PartnerBData, TimeSlot } from '@/types';
 
 export default function PartnerBPage() {
   const router = useRouter();
@@ -24,11 +24,12 @@ export default function PartnerBPage() {
   const [sessionExists, setSessionExists] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<string>('');
 
+  const [proposedTimes, setProposedTimes] = useState<TimeSlot[]>([]);
   const [formData, setFormData] = useState<PartnerBData>({
-    availableDays: [],
-    preferredTime: '',
+    selectedTimeSlots: [],
     dietaryRestrictions: '',
-    cuisinePreferences: [],
+    lovedCuisines: [],
+    dislikedCuisines: [],
     vibe: [],
     dealbreakers: [],
     alcoholPreference: '',
@@ -56,6 +57,7 @@ export default function PartnerBPage() {
 
         setSessionExists(true);
         setSessionStatus(data.status);
+        setProposedTimes(data.proposedTimes || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load session');
       } finally {
@@ -98,8 +100,7 @@ export default function PartnerBPage() {
 
   const isFormValid = () => {
     return (
-      formData.availableDays.length > 0 &&
-      formData.preferredTime &&
+      formData.selectedTimeSlots.length > 0 &&
       formData.vibe.length > 0 &&
       formData.alcoholPreference &&
       formData.publicPrivate &&
@@ -183,31 +184,12 @@ export default function PartnerBPage() {
             variants={fadeInUp}
             className="space-y-6"
           >
-            <QuestionCard question="Which days work best for you?">
-              <DayPicker
-                selectedDays={formData.availableDays}
-                onChange={(days) => updateFormData('availableDays', days)}
-                maxSelections={7}
+            <QuestionCard question="Which of these times work for you?">
+              <TimeSlotSelector
+                proposedTimes={proposedTimes}
+                selectedTimeSlots={formData.selectedTimeSlots}
+                onChange={(selectedIds) => updateFormData('selectedTimeSlots', selectedIds)}
               />
-            </QuestionCard>
-
-            <QuestionCard question="What time of day do you prefer?">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {['Morning (9AM-12PM)', 'Afternoon (12PM-5PM)', 'Evening (5PM-9PM)', 'Late Night (9PM+)'].map((time) => (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => updateFormData('preferredTime', time)}
-                    className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      formData.preferredTime === time
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
             </QuestionCard>
 
             <QuestionCard question="Any dietary restrictions or allergies?">
@@ -226,8 +208,8 @@ export default function PartnerBPage() {
                   'Italian', 'Mexican', 'Asian', 'American', 'Mediterranean',
                   'Indian', 'Thai', 'French', 'Japanese', 'Greek', 'Vegetarian', 'Seafood'
                 ]}
-                selected={formData.cuisinePreferences}
-                onChange={(selected) => updateFormData('cuisinePreferences', selected)}
+                selected={formData.lovedCuisines}
+                onChange={(selected) => updateFormData('lovedCuisines', selected)}
                 placeholder="Select your favorite cuisines..."
               />
             </QuestionCard>

@@ -8,7 +8,7 @@ import Button from '@/components/Button';
 import StepHeader from '@/components/StepHeader';
 import QuestionCard from '@/components/QuestionCard';
 import LocationInput from '@/components/LocationInput';
-import DayPicker from '@/components/DayPicker';
+import TimeSlotPicker from '@/components/TimeSlotPicker';
 import MultiSelectChips from '@/components/MultiSelectChips';
 import Toggle from '@/components/Toggle';
 import Slider from '@/components/Slider';
@@ -28,8 +28,7 @@ export default function PlanPage() {
 
   const [formData, setFormData] = useState<PartnerAData>({
     location: '',
-    availableDays: [],
-    preferredTime: '',
+    proposedTimes: [],
     dateDuration: '',
     travelDistance: 10,
     budget: 100,
@@ -37,7 +36,8 @@ export default function PlanPage() {
     includeFood: true,
     includeDrinks: true,
     dietaryRestrictions: '',
-    cuisinePreferences: [],
+    lovedCuisines: [],
+    dislikedCuisines: [],
     vibe: [],
     physicalTouch: '',
     conversationImportant: true,
@@ -105,7 +105,7 @@ export default function PlanPage() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.location && formData.availableDays.length > 0 && formData.preferredTime && formData.dateDuration;
+        return formData.location && formData.proposedTimes.length > 0 && formData.dateDuration;
       case 2:
         return formData.budget > 0;
       case 3:
@@ -309,7 +309,6 @@ function getStepDescription(step: number): string {
 
 // Step Components
 function Step1LocationTime({ formData, updateFormData }: { formData: PartnerAData; updateFormData: (field: keyof PartnerAData, value: any) => void }) {
-  const timeOptions = ['Morning (9AM-12PM)', 'Afternoon (12PM-5PM)', 'Evening (5PM-9PM)', 'Late Night (9PM+)'];
   const durationOptions = ['1-2 hours', '2-3 hours', '3-4 hours', '4+ hours'];
 
   return (
@@ -323,31 +322,12 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
         />
       </QuestionCard>
 
-      <QuestionCard question="Which days are you free?">
-        <DayPicker
-          selectedDays={formData.availableDays}
-          onChange={(days) => updateFormData('availableDays', days)}
-          maxSelections={7}
+      <QuestionCard question="When are you available for this date?">
+        <TimeSlotPicker
+          selectedSlots={formData.proposedTimes}
+          onChange={(slots) => updateFormData('proposedTimes', slots)}
+          maxSlots={5}
         />
-      </QuestionCard>
-
-      <QuestionCard question="Preferred time of day?">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {timeOptions.map((time) => (
-            <button
-              key={time}
-              type="button"
-              onClick={() => updateFormData('preferredTime', time)}
-              className={`p-3 rounded-lg border-2 text-left transition-all ${
-                formData.preferredTime === time
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              {time}
-            </button>
-          ))}
-        </div>
       </QuestionCard>
 
       <QuestionCard question="How long should the date last?">
@@ -386,65 +366,77 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
 
 function Step2BudgetFood({ formData, updateFormData }: { formData: PartnerAData; updateFormData: (field: keyof PartnerAData, value: any) => void }) {
   const cuisineOptions = [
-    'Italian', 'Mexican', 'Asian', 'American', 'Mediterranean',
-    'Indian', 'Thai', 'French', 'Japanese', 'Greek', 'Vegetarian', 'Seafood'
+    'Italian', 'Mexican', 'Japanese', 'Chinese', 'Indian', 'French', 'Thai', 'Vietnamese', 
+    'Korean', 'Mediterranean', 'American', 'Barbecue', 'Pizza', 'Seafood', 'Steakhouse', 'Sushi'
   ];
 
   return (
     <div className="space-y-6">
-      <QuestionCard question="What's your total budget?">
+      <QuestionCard question="What's your budget for the date?">
         <Slider
-          min={25}
+          min={10}
           max={500}
-          step={25}
+          step={10}
           value={formData.budget}
           onChange={(value) => updateFormData('budget', value)}
-          label="Total budget for both people"
+          label="Estimated total cost"
           formatValue={(value) => `$${value}`}
         />
-      </QuestionCard>
-
-      <QuestionCard question="Cost splitting preferences">
-        <div className="space-y-4">
+        <div className="mt-4">
           <Toggle
             checked={formData.splitCosts}
             onChange={(checked) => updateFormData('splitCosts', checked)}
-            label="Are you okay with splitting costs?"
-            description="This helps us suggest appropriate venues and activities"
-          />
-          <Toggle
-            checked={formData.includeFood}
-            onChange={(checked) => updateFormData('includeFood', checked)}
-            label="Do you want food included?"
-            description="Include restaurants, cafes, or food experiences"
-          />
-          <Toggle
-            checked={formData.includeDrinks}
-            onChange={(checked) => updateFormData('includeDrinks', checked)}
-            label="Do you want drinks included?"
-            description="Include bars, wineries, or drink experiences"
+            label="Are you open to splitting costs?"
           />
         </div>
       </QuestionCard>
 
-      <QuestionCard question="Any dietary restrictions?">
-        <input
-          type="text"
-          value={formData.dietaryRestrictions}
-          onChange={(e) => updateFormData('dietaryRestrictions', e.target.value)}
-          placeholder="e.g., vegetarian, gluten-free, allergies..."
-          className="form-input"
-        />
+      <QuestionCard question="Should the date include food or drinks?">
+        <div className="space-y-3">
+          <Toggle
+            checked={formData.includeFood}
+            onChange={(checked) => updateFormData('includeFood', checked)}
+            label="Include food (e.g., a meal or snacks)"
+          />
+          <Toggle
+            checked={formData.includeDrinks}
+            onChange={(checked) => updateFormData('includeDrinks', checked)}
+            label="Include drinks (can be alcoholic or non-alcoholic)"
+          />
+        </div>
       </QuestionCard>
 
-      <QuestionCard question="Any cuisines you love or dislike?">
-        <MultiSelectChips
-          options={cuisineOptions}
-          selected={formData.cuisinePreferences}
-          onChange={(selected) => updateFormData('cuisinePreferences', selected)}
-          placeholder="Select your favorite cuisines..."
-        />
-      </QuestionCard>
+      {formData.includeFood && (
+        <>
+          <QuestionCard question="Any dietary needs or restrictions?">
+            <input
+              type="text"
+              value={formData.dietaryRestrictions}
+              onChange={(e) => updateFormData('dietaryRestrictions', e.target.value)}
+              placeholder="e.g., vegetarian, gluten-free, nut allergy..."
+              className="form-input"
+            />
+          </QuestionCard>
+
+          <QuestionCard question="Which of these types of food do you love?">
+            <MultiSelectChips
+              options={cuisineOptions}
+              selected={formData.lovedCuisines}
+              onChange={(selected) => updateFormData('lovedCuisines', selected)}
+              placeholder="Select your favorites"
+            />
+          </QuestionCard>
+
+          <QuestionCard question="Any of these you’re not really into?">
+            <MultiSelectChips
+              options={cuisineOptions}
+              selected={formData.dislikedCuisines}
+              onChange={(selected) => updateFormData('dislikedCuisines', selected)}
+              placeholder="Select cuisines to avoid"
+            />
+          </QuestionCard>
+        </>
+      )}
     </div>
   );
 }
@@ -588,9 +580,16 @@ function Step4Review({ formData, onSubmit, isSubmitting, error }: {
           <div>
             <h4 className="font-semibold text-gray-800">Location & Timing</h4>
             <p className="text-sm text-gray-600">
-              📍 {formData.location} • 📅 {formData.availableDays.join(', ')} • 
-              ⏰ {formData.preferredTime} • ⏱️ {formData.dateDuration}
+              📍 {formData.location} • ⏱️ {formData.dateDuration}
             </p>
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-gray-500">Proposed times:</p>
+              {formData.proposedTimes.map((slot, index) => (
+                <p key={slot.id} className="text-xs text-gray-600">
+                  {index + 1}. {slot.displayText}
+                </p>
+              ))}
+            </div>
           </div>
           
           <div>
