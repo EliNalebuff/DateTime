@@ -2,4 +2,4 @@
   builder = "nixpacks"
 
 [deploy]
-  startCommand = "npm run server:prod" 
+  startCommand = "node server.js" 
