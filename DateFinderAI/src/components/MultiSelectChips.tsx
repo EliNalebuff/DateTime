@@ -30,7 +30,7 @@ const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
       <div className="flex flex-wrap gap-2">
         {options.map((option, index) => {
           const isSelected = selected.includes(option);
-          const isDisabled = maxSelections && selected.length >= maxSelections && !isSelected;
+          const isDisabled = Boolean(maxSelections && selected.length >= maxSelections && !isSelected);
           
           return (
             <button

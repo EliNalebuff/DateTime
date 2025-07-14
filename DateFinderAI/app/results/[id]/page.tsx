@@ -141,7 +141,7 @@ export default function ResultsPage() {
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+    animate: { opacity: 1, y: 0 }
   };
 
   return (
@@ -153,6 +153,7 @@ export default function ResultsPage() {
             initial="initial"
             animate="animate"
             variants={fadeInUp}
+            transition={{ duration: 0.6 }}
             className="text-center mb-12"
           >
             <div className="flex items-center justify-center mb-6">
@@ -170,6 +171,7 @@ export default function ResultsPage() {
           {/* Progress Indicator */}
           <motion.div
             variants={fadeInUp}
+            transition={{ duration: 0.6 }}
             className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-8 shadow-lg border border-white/20"
           >
             <div className="flex items-center justify-between">
@@ -223,6 +225,7 @@ export default function ResultsPage() {
           {/* Date Options */}
           <motion.div
             variants={fadeInUp}
+            transition={{ duration: 0.6 }}
             className="space-y-6"
           >
             {currentStep === 'partner_a_select' && (

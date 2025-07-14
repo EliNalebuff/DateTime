@@ -16,7 +16,7 @@ export default function WelcomePage() {
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+    animate: { opacity: 1, y: 0 }
   };
 
   const staggerChildren = {
@@ -31,7 +31,7 @@ export default function WelcomePage() {
           initial="initial"
           animate="animate"
           variants={staggerChildren}
-          transition={{ staggerChildren: 0.1 }}
+          transition={{ staggerChildren: 0.1, delayChildren: 0.2, duration: 0.6 }}
         >
           {/* Header */}
           <motion.div variants={fadeInUp} className="mb-12">
@@ -48,7 +48,7 @@ export default function WelcomePage() {
           </motion.div>
 
           {/* Hero Section */}
-          <motion.div variants={fadeInUp} className="mb-16">
+          <motion.div variants={fadeInUp} transition={{ duration: 0.6 }} className="mb-16">
             <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 md:p-12 shadow-xl border border-white/20">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">
                 How it works
@@ -92,7 +92,7 @@ export default function WelcomePage() {
           </motion.div>
 
           {/* CTA Section */}
-          <motion.div variants={fadeInUp} className="mb-12">
+          <motion.div variants={fadeInUp} transition={{ duration: 0.6 }} className="mb-12">
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20">
               <h3 className="text-2xl font-bold text-gray-800 mb-4">
                 Ready to plan the perfect date?
@@ -115,7 +115,7 @@ export default function WelcomePage() {
           </motion.div>
 
           {/* Features */}
-          <motion.div variants={fadeInUp} className="grid md:grid-cols-2 gap-6">
+          <motion.div variants={fadeInUp} transition={{ duration: 0.6 }} className="grid md:grid-cols-2 gap-6">
             <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 text-left">
               <h4 className="text-lg font-semibold text-gray-800 mb-3">
                 🎯 AI-Powered Matching

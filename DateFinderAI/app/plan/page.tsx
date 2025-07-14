@@ -117,7 +117,7 @@ export default function PlanPage() {
 
   const slideVariants = {
     enter: { x: 300, opacity: 0 },
-    center: { x: 0, opacity: 1, transition: { duration: 0.3 } },
+    center: { x: 0, opacity: 1 },
     exit: { x: -300, opacity: 0 }
   };
 
@@ -210,6 +210,7 @@ export default function PlanPage() {
               initial="enter"
               animate="center"
               exit="exit"
+              transition={{ duration: 0.3 }}
               className="space-y-6"
             >
               {currentStep === 1 && (

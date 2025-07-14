@@ -27,7 +27,7 @@ const DayPicker: React.FC<DayPickerProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         {days.map((day) => {
           const isSelected = selectedDays.includes(day);
-          const isDisabled = maxSelections && selectedDays.length >= maxSelections && !isSelected;
+          const isDisabled = Boolean(maxSelections && selectedDays.length >= maxSelections && !isSelected);
           
           return (
             <button
