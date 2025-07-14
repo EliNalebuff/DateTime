@@ -14,7 +14,9 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:5001/api/:path*',
+        destination: process.env.NODE_ENV === 'production' 
+          ? 'https://datetime-production.up.railway.app/api/:path*'
+          : 'http://localhost:5001/api/:path*',
       },
     ]
   },
