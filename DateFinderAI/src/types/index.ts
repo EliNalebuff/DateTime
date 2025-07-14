@@ -114,6 +114,8 @@ export interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   onClick?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
   children: any;
   className?: string;
   type?: 'button' | 'submit' | 'reset';

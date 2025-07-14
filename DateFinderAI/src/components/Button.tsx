@@ -10,6 +10,8 @@ const Button: React.FC<ButtonProps> = ({
   disabled = false,
   loading = false,
   onClick,
+  onMouseEnter,
+  onMouseLeave,
   children,
   className,
   type = 'button',
@@ -47,6 +49,8 @@ const Button: React.FC<ButtonProps> = ({
       className={buttonClass}
       disabled={disabled || loading}
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       {...props}
     >
       {loading ? (
