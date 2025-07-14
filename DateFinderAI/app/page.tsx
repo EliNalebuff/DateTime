@@ -20,11 +20,7 @@ export default function WelcomePage() {
   };
 
   const staggerChildren = {
-    animate: {
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
+    animate: {}
   };
 
   return (
@@ -35,6 +31,7 @@ export default function WelcomePage() {
           initial="initial"
           animate="animate"
           variants={staggerChildren}
+          transition={{ staggerChildren: 0.1 }}
         >
           {/* Header */}
           <motion.div variants={fadeInUp} transition={{ duration: 0.6 }} className="mb-12">
