@@ -5,10 +5,21 @@ export interface TimeSlot {
   displayText: string; // Human-readable format like "Tuesday, July 15th at 7:00 PM"
 }
 
+export interface TimeRange {
+  id: string;
+  date: string; // ISO date string (YYYY-MM-DD)
+  startTime: string; // Time string (HH:MM)
+  endTime: string; // Time string (HH:MM)
+  startPeriod: 'AM' | 'PM';
+  endPeriod: 'AM' | 'PM';
+  displayText: string; // Human-readable format like "Tuesday, July 15th from 7:00 PM to 9:00 PM"
+}
+
 export interface PartnerAData {
   location: string;
-  proposedTimes: TimeSlot[]; // Up to 5 specific date/time slots
+  proposedTimeRanges: TimeRange[]; // Up to 5 specific date/time ranges
   dateDuration: string;
+  ageRange: string;
   travelDistance: number;
   budget: number;
   splitCosts: boolean;
@@ -18,24 +29,55 @@ export interface PartnerAData {
   lovedCuisines: string[];
   dislikedCuisines: string[];
   vibe: string[];
-  physicalTouch: string;
   conversationImportant: boolean;
   alcoholAvailable: boolean;
   dealbreakers: string[];
+  customDealbreaker: string;
   publicPrivate: string;
   indoorOutdoor: string;
+  // Personal information (optional/skippable section)
+  sportsTeams?: string;
+  workDescription?: string;
+  backgroundInfo?: string;
+  celebrityFans?: string;
+  siblings?: string;
+  roleModels?: string;
+  travelExperience?: string;
+  musicPreferences?: string;
+  hobbiesInterests?: string;
+  culturalBackground?: string;
+  personalInsight?: string;
 }
 
 export interface PartnerBData {
-  selectedTimeSlots: string[]; // IDs of time slots that work for Person B
+  selectedTimeRanges: string[]; // IDs of time ranges that work for Person B
+  ageRange: string;
+  budget: number;
+  splitCosts: boolean;
+  includeFood: boolean;
+  includeDrinks: boolean;
   dietaryRestrictions: string;
   lovedCuisines: string[];
   dislikedCuisines: string[];
   vibe: string[];
+  conversationImportant: boolean;
   dealbreakers: string[];
+  customDealbreaker: string;
   alcoholPreference: string;
   publicPrivate: string;
   indoorOutdoor: string;
+  // Personal information (optional/skippable section)
+  sportsTeams?: string;
+  workDescription?: string;
+  backgroundInfo?: string;
+  celebrityFans?: string;
+  siblings?: string;
+  roleModels?: string;
+  travelExperience?: string;
+  musicPreferences?: string;
+  hobbiesInterests?: string;
+  culturalBackground?: string;
+  personalInsight?: string;
 }
 
 export interface DateOption {

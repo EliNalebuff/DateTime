@@ -42,9 +42,17 @@ const DateSessionSchema = new mongoose.Schema({
   uuid: { type: String, unique: true, required: true },
   partnerA: {
     location: String,
-    availableDays: [String],
-    preferredTime: String,
+    proposedTimeRanges: [{
+      id: String,
+      date: String,
+      startTime: String,
+      endTime: String,
+      startPeriod: String,
+      endPeriod: String,
+      displayText: String
+    }],
     dateDuration: String,
+    ageRange: String,
     travelDistance: Number,
     budget: Number,
     splitCosts: Boolean,
@@ -54,24 +62,54 @@ const DateSessionSchema = new mongoose.Schema({
     lovedCuisines: [String],
     dislikedCuisines: [String],
     vibe: [String],
-    physicalTouch: String,
     conversationImportant: Boolean,
     alcoholAvailable: Boolean,
     dealbreakers: [String],
+    customDealbreaker: String,
     publicPrivate: String,
     indoorOutdoor: String,
+    // Personal information (optional)
+    sportsTeams: String,
+    workDescription: String,
+    backgroundInfo: String,
+    celebrityFans: String,
+    siblings: String,
+    roleModels: String,
+    travelExperience: String,
+    musicPreferences: String,
+    hobbiesInterests: String,
+    culturalBackground: String,
+    personalInsight: String,
   },
   partnerB: {
-    availableDays: [String],
-    preferredTime: String,
+    selectedTimeRanges: [String],
+    ageRange: String,
+    budget: Number,
+    splitCosts: Boolean,
+    includeFood: Boolean,
+    includeDrinks: Boolean,
     dietaryRestrictions: String,
     lovedCuisines: [String],
     dislikedCuisines: [String],
     vibe: [String],
+    conversationImportant: Boolean,
     dealbreakers: [String],
+    customDealbreaker: String,
     alcoholPreference: String,
     publicPrivate: String,
     indoorOutdoor: String,
+    // Personal information (optional)
+    sportsTeams: String,
+    workDescription: String,
+    backgroundInfo: String,
+    celebrityFans: String,
+    siblings: String,
+    roleModels: String,
+    travelExperience: String,
+    musicPreferences: String,
+    hobbiesInterests: String,
+    culturalBackground: String,
+    personalInsight: String,
   },
   dateOptions: [{
     id: String,
@@ -113,8 +151,8 @@ async function generateDateIdeas(partnerA, partnerB) {
 
     **Shared Preferences:**
     - Location for the date: ${partnerA.location}
-    - Proposed times by Partner A: ${partnerA.proposedTimes && partnerA.proposedTimes.length > 0 ? partnerA.proposedTimes.map(t => t.displayText).join(', ') : 'None specified'}
-    - Times selected by Partner B: ${partnerB.selectedTimeSlots && partnerB.selectedTimeSlots.length > 0 ? partnerA.proposedTimes.filter(t => partnerB.selectedTimeSlots.includes(t.id)).map(t => t.displayText).join(', ') : 'None specified'}
+    - Proposed times by Partner A: ${partnerA.proposedTimeRanges && partnerA.proposedTimeRanges.length > 0 ? partnerA.proposedTimeRanges.map(t => t.displayText).join(', ') : 'None specified'}
+    - Times selected by Partner B: ${partnerB.selectedTimeRanges && partnerB.selectedTimeRanges.length > 0 ? partnerA.proposedTimeRanges.filter(t => partnerB.selectedTimeRanges.includes(t.id)).map(t => t.displayText).join(', ') : 'None specified'}
     - Desired date duration: ${partnerA.dateDuration}
     - Max travel distance: ${partnerA.travelDistance} miles
     - Combined budget: $${partnerA.budget}
@@ -286,7 +324,7 @@ app.get('/api/date/:uuid', async (req, res) => {
       exists: true,
       status: session.status,
       createdAt: session.createdAt,
-      proposedTimes: session.partnerA.proposedTimes || []
+      proposedTimeRanges: session.partnerA.proposedTimeRanges || []
     });
   } catch (error) {
     console.error('Error fetching date session:', error);

@@ -8,7 +8,7 @@ import Button from '@/components/Button';
 import StepHeader from '@/components/StepHeader';
 import QuestionCard from '@/components/QuestionCard';
 import LocationInput from '@/components/LocationInput';
-import TimeSlotPicker from '@/components/TimeSlotPicker';
+import TimeRangePicker from '@/components/TimeRangePicker';
 import MultiSelectChips from '@/components/MultiSelectChips';
 import Toggle from '@/components/Toggle';
 import Slider from '@/components/Slider';
@@ -16,7 +16,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import { PartnerAData } from '@/types';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 export default function PlanPage() {
   const router = useRouter();
@@ -28,8 +28,9 @@ export default function PlanPage() {
 
   const [formData, setFormData] = useState<PartnerAData>({
     location: '',
-    proposedTimes: [],
+    proposedTimeRanges: [],
     dateDuration: '',
+    ageRange: '',
     travelDistance: 10,
     budget: 100,
     splitCosts: true,
@@ -39,12 +40,24 @@ export default function PlanPage() {
     lovedCuisines: [],
     dislikedCuisines: [],
     vibe: [],
-    physicalTouch: '',
     conversationImportant: true,
     alcoholAvailable: true,
     dealbreakers: [],
+    customDealbreaker: '',
     publicPrivate: 'public',
     indoorOutdoor: 'either',
+    // Personal information (optional)
+    sportsTeams: '',
+    workDescription: '',
+    backgroundInfo: '',
+    celebrityFans: '',
+    siblings: '',
+    roleModels: '',
+    travelExperience: '',
+    musicPreferences: '',
+    hobbiesInterests: '',
+    culturalBackground: '',
+    personalInsight: '',
   });
 
   const updateFormData = (field: keyof PartnerAData, value: any) => {
@@ -105,11 +118,15 @@ export default function PlanPage() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.location && formData.proposedTimes.length > 0 && formData.dateDuration;
+        return formData.location && formData.proposedTimeRanges.length > 0 && formData.dateDuration && formData.ageRange;
       case 2:
         return formData.budget > 0;
       case 3:
-        return formData.vibe.length > 0 && formData.physicalTouch;
+        return formData.vibe.length > 0;
+      case 4:
+        return true; // Review step is always valid
+      case 5:
+        return true; // About yourself step is optional, so always valid
       default:
         return true;
     }
@@ -234,6 +251,12 @@ export default function PlanPage() {
               {currentStep === 4 && (
                 <Step4Review
                   formData={formData}
+                />
+              )}
+              {currentStep === 5 && (
+                <Step5AboutYourself
+                  formData={formData}
+                  updateFormData={updateFormData}
                   onSubmit={handleSubmit}
                   isSubmitting={isSubmitting}
                   error={error}
@@ -286,7 +309,9 @@ function getStepTitle(step: number): string {
     case 3:
       return 'Preferences & Vibe';
     case 4:
-      return 'Review & Generate';
+      return 'Review Your Info';
+    case 5:
+      return 'About Yourself';
     default:
       return '';
   }
@@ -301,7 +326,9 @@ function getStepDescription(step: number): string {
     case 3:
       return 'Share your ideal date vibe and preferences';
     case 4:
-      return 'Review your answers and create your shareable link';
+      return 'Review your answers before the final step';
+    case 5:
+      return 'Share more about yourself for better date suggestions (optional)';
     default:
       return '';
   }
@@ -310,6 +337,7 @@ function getStepDescription(step: number): string {
 // Step Components
 function Step1LocationTime({ formData, updateFormData }: { formData: PartnerAData; updateFormData: (field: keyof PartnerAData, value: any) => void }) {
   const durationOptions = ['1-2 hours', '2-3 hours', '3-4 hours', '4+ hours'];
+  const ageRangeOptions = ['20 and under', '21-28', '29-39', '40+'];
 
   return (
     <div className="space-y-6">
@@ -322,11 +350,30 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
         />
       </QuestionCard>
 
+      <QuestionCard question="What's your age range?">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
+          {ageRangeOptions.map((range) => (
+            <button
+              key={range}
+              type="button"
+              onClick={() => updateFormData('ageRange', range)}
+              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                formData.ageRange === range
+                  ? 'border-primary-500 bg-primary-50 text-primary-700'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              {range}
+            </button>
+          ))}
+        </div>
+      </QuestionCard>
+
       <QuestionCard question="When are you available for this date?">
-        <TimeSlotPicker
-          selectedSlots={formData.proposedTimes}
-          onChange={(slots) => updateFormData('proposedTimes', slots)}
-          maxSlots={5}
+        <TimeRangePicker
+          selectedRanges={formData.proposedTimeRanges}
+          onChange={(ranges) => updateFormData('proposedTimeRanges', ranges)}
+          maxRanges={5}
         />
       </QuestionCard>
 
@@ -452,8 +499,6 @@ function Step3Preferences({ formData, updateFormData }: { formData: PartnerAData
     'No alcohol', 'No physical activities', 'No late nights', 'No expensive places'
   ];
 
-  const physicalTouchOptions = ['Yes', 'No', 'Unsure'];
-
   return (
     <div className="space-y-6">
       <QuestionCard question="What vibe are you in the mood for?">
@@ -464,25 +509,6 @@ function Step3Preferences({ formData, updateFormData }: { formData: PartnerAData
           maxSelections={3}
           placeholder="Pick 1-3 vibes that match your mood..."
         />
-      </QuestionCard>
-
-      <QuestionCard question="Is physical touch likely?">
-        <div className="grid grid-cols-3 gap-3">
-          {physicalTouchOptions.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => updateFormData('physicalTouch', option)}
-              className={`p-3 rounded-lg border-2 text-center transition-all ${
-                formData.physicalTouch === option
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
       </QuestionCard>
 
       <QuestionCard question="Conversation and atmosphere preferences">
@@ -509,6 +535,15 @@ function Step3Preferences({ formData, updateFormData }: { formData: PartnerAData
           onChange={(selected) => updateFormData('dealbreakers', selected)}
           placeholder="Select any absolute no-gos..."
         />
+        <div className="mt-4">
+          <input
+            type="text"
+            value={formData.customDealbreaker}
+            onChange={(e) => updateFormData('customDealbreaker', e.target.value)}
+            placeholder="Add your own custom dealbreaker..."
+            className="form-input"
+          />
+        </div>
       </QuestionCard>
 
       <QuestionCard question="Setting preferences">
@@ -558,8 +593,76 @@ function Step3Preferences({ formData, updateFormData }: { formData: PartnerAData
   );
 }
 
-function Step4Review({ formData, onSubmit, isSubmitting, error }: { 
+function Step4Review({ formData }: { 
+  formData: PartnerAData;
+}) {
+  return (
+    <div className="space-y-6">
+      <QuestionCard question="Review your preferences">
+        <div className="space-y-4 text-left">
+          <div>
+            <h4 className="font-semibold text-gray-800">Location & Timing</h4>
+            <p className="text-sm text-gray-600">
+              📍 {formData.location} • ⏱️ {formData.dateDuration} • 👤 Age: {formData.ageRange}
+            </p>
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-gray-500">Proposed times:</p>
+              {formData.proposedTimeRanges.map((range, index) => (
+                <p key={range.id} className="text-xs text-gray-600">
+                  {index + 1}. {range.displayText}
+                </p>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-gray-800">Budget & Food</h4>
+            <p className="text-sm text-gray-600">
+              💰 ${formData.budget} • 
+              {formData.includeFood ? ' 🍽️ Food' : ''} • 
+              {formData.includeDrinks ? ' 🍷 Drinks' : ''}
+            </p>
+            {formData.lovedCuisines.length > 0 && (
+              <p className="text-sm text-gray-600">
+                ✅ Likes: {formData.lovedCuisines.join(', ')}
+              </p>
+            )}
+            {formData.dislikedCuisines.length > 0 && (
+              <p className="text-sm text-gray-600">
+                ❌ Avoid: {formData.dislikedCuisines.join(', ')}
+              </p>
+            )}
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-gray-800">Vibe & Preferences</h4>
+            <p className="text-sm text-gray-600">
+              {formData.vibe.join(', ')} • 
+              {formData.indoorOutdoor === 'either' ? 'Indoor/Outdoor' : formData.indoorOutdoor} • 
+              {formData.publicPrivate}
+            </p>
+            {formData.dealbreakers.length > 0 && (
+              <p className="text-sm text-gray-600">
+                🚫 Dealbreakers: {formData.dealbreakers.join(', ')}
+                {formData.customDealbreaker && `, ${formData.customDealbreaker}`}
+              </p>
+            )}
+          </div>
+        </div>
+      </QuestionCard>
+      
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+        <p className="text-blue-700 text-sm">
+          Everything looks good? Continue to the final step to share more about yourself and generate your date link!
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Step5AboutYourself({ formData, updateFormData, onSubmit, isSubmitting, error }: { 
   formData: PartnerAData; 
+  updateFormData: (field: keyof PartnerAData, value: any) => void;
   onSubmit: () => void; 
   isSubmitting: boolean; 
   error: string | null; 
@@ -575,66 +678,143 @@ function Step4Review({ formData, onSubmit, isSubmitting, error }: {
 
   return (
     <div className="space-y-6">
-      <QuestionCard question="Review your preferences">
-        <div className="space-y-4 text-left">
-          <div>
-            <h4 className="font-semibold text-gray-800">Location & Timing</h4>
-            <p className="text-sm text-gray-600">
-              📍 {formData.location} • ⏱️ {formData.dateDuration}
-            </p>
-            <div className="mt-2 space-y-1">
-              <p className="text-xs text-gray-500">Proposed times:</p>
-              {formData.proposedTimes.map((slot, index) => (
-                <p key={slot.id} className="text-xs text-gray-600">
-                  {index + 1}. {slot.displayText}
-                </p>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-gray-800">Budget & Food</h4>
-            <p className="text-sm text-gray-600">
-              💰 ${formData.budget} • 
-              {formData.includeFood ? ' 🍽️ Food' : ''} • 
-              {formData.includeDrinks ? ' 🍷 Drinks' : ''}
-            </p>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-gray-800">Vibe</h4>
-            <p className="text-sm text-gray-600">
-              {formData.vibe.join(', ')} • 
-              {formData.indoorOutdoor === 'either' ? 'Indoor/Outdoor' : formData.indoorOutdoor} • 
-              {formData.publicPrivate}
-            </p>
-          </div>
-        </div>
+      <div className="bg-primary-50 border border-primary-200 rounded-xl p-6 text-center mb-6">
+        <h3 className="text-lg font-semibold text-primary-800 mb-2">
+          Tell us about yourself (Optional but Recommended!)
+        </h3>
+        <p className="text-primary-700 text-sm">
+          This information helps us create more personalized and engaging date suggestions. 
+          Feel free to skip any questions you're not comfortable answering.
+        </p>
+      </div>
+
+      <QuestionCard question="Do you root for any sports teams? If so, which ones?">
+        <input
+          type="text"
+          value={formData.sportsTeams || ''}
+          onChange={(e) => updateFormData('sportsTeams', e.target.value)}
+          placeholder="e.g., Lakers, Yankees, Manchester United..."
+          className="form-input"
+        />
       </QuestionCard>
 
-      <div className="bg-primary-50 border border-primary-200 rounded-xl p-6">
+      <QuestionCard question="What do you do for work?">
+        <input
+          type="text"
+          value={formData.workDescription || ''}
+          onChange={(e) => updateFormData('workDescription', e.target.value)}
+          placeholder="e.g., Software engineer, Teacher, Student..."
+          className="form-input"
+        />
+      </QuestionCard>
+
+      <QuestionCard question="Where are you from? Where did you go to high school and/or college?">
+        <textarea
+          value={formData.backgroundInfo || ''}
+          onChange={(e) => updateFormData('backgroundInfo', e.target.value)}
+          placeholder="Tell us about your hometown, schools, etc..."
+          className="form-input min-h-[80px]"
+          rows={3}
+        />
+      </QuestionCard>
+
+      <QuestionCard question="Which celebrities are you a fan of and why?">
+        <textarea
+          value={formData.celebrityFans || ''}
+          onChange={(e) => updateFormData('celebrityFans', e.target.value)}
+          placeholder="Share who you admire and what you appreciate about them..."
+          className="form-input min-h-[80px]"
+          rows={3}
+        />
+      </QuestionCard>
+
+      <QuestionCard question="Do you have any siblings? How many? Are they younger or older?">
+        <input
+          type="text"
+          value={formData.siblings || ''}
+          onChange={(e) => updateFormData('siblings', e.target.value)}
+          placeholder="e.g., 2 older brothers, 1 younger sister..."
+          className="form-input"
+        />
+      </QuestionCard>
+
+      <QuestionCard question="Do you have any role models? If so, who are they and why?">
+        <textarea
+          value={formData.roleModels || ''}
+          onChange={(e) => updateFormData('roleModels', e.target.value)}
+          placeholder="Tell us about people who inspire you..."
+          className="form-input min-h-[80px]"
+          rows={3}
+        />
+      </QuestionCard>
+
+      <QuestionCard question="Do you enjoy traveling? If so, where have you been and where was your favorite place?">
+        <textarea
+          value={formData.travelExperience || ''}
+          onChange={(e) => updateFormData('travelExperience', e.target.value)}
+          placeholder="Share your travel experiences and favorite destinations..."
+          className="form-input min-h-[80px]"
+          rows={3}
+        />
+      </QuestionCard>
+
+      <QuestionCard question="What kind of music do you like to listen to? Who are your favorite artists?">
+        <textarea
+          value={formData.musicPreferences || ''}
+          onChange={(e) => updateFormData('musicPreferences', e.target.value)}
+          placeholder="Tell us about your music taste and favorite artists..."
+          className="form-input min-h-[80px]"
+          rows={3}
+        />
+      </QuestionCard>
+
+      <QuestionCard question="What are your hobbies and interests?">
+        <textarea
+          value={formData.hobbiesInterests || ''}
+          onChange={(e) => updateFormData('hobbiesInterests', e.target.value)}
+          placeholder="Share what you love to do in your free time..."
+          className="form-input min-h-[80px]"
+          rows={3}
+        />
+      </QuestionCard>
+
+      <QuestionCard question="What is your ethnic/cultural background?">
+        <input
+          type="text"
+          value={formData.culturalBackground || ''}
+          onChange={(e) => updateFormData('culturalBackground', e.target.value)}
+          placeholder="e.g., Italian-American, Nigerian, Mixed heritage..."
+          className="form-input"
+        />
+      </QuestionCard>
+
+      <QuestionCard question="What is something about yourself you feel like people don't know or appreciate?">
+        <textarea
+          value={formData.personalInsight || ''}
+          onChange={(e) => updateFormData('personalInsight', e.target.value)}
+          placeholder="Share something unique or special about yourself..."
+          className="form-input min-h-[80px]"
+          rows={3}
+        />
+      </QuestionCard>
+
+      <div className="bg-primary-50 border border-primary-200 rounded-xl p-6 text-center">
         <h3 className="text-lg font-semibold text-primary-800 mb-2">
-          Ready to generate your shareable link?
+          Ready to create your perfect date?
         </h3>
-        <p className="text-primary-700 text-sm mb-4">
-          Your answers will be used to create 3 perfect date ideas once your partner responds.
-          They won't see your individual answers - only the final curated options.
+        <p className="text-primary-700 text-sm mb-6">
+          We'll use all your preferences to create a personalized shareable link for your date partner.
         </p>
         
-        {isSubmitting ? (
-          <div className="flex items-center justify-center py-4">
-            <LoadingSpinner size="lg" />
-            <span className="ml-3 text-gray-600">Creating your link...</span>
-          </div>
-        ) : (
-          <Button
-            size="lg"
-            onClick={onSubmit}
-            className="w-full"
-          >
-            Generate Shareable Link
-          </Button>
-        )}
+        <Button
+          size="lg"
+          onClick={onSubmit}
+          disabled={isSubmitting}
+          loading={isSubmitting}
+          className="w-full"
+        >
+          Generate My Date Link
+        </Button>
       </div>
     </div>
   );
