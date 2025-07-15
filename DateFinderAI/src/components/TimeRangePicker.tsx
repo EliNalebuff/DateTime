@@ -16,11 +16,21 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
   onChange,
   maxRanges = 5,
 }) => {
-  const [newRange, setNewRange] = useState<Partial<TimeRange>>({
+  const [newRange, setNewRange] = useState<{
+    date: string;
+    startHour: string;
+    startMinute: string;
+    startPeriod: 'AM' | 'PM';
+    endHour: string;
+    endMinute: string;
+    endPeriod: 'AM' | 'PM';
+  }>({
     date: '',
-    startTime: '',
-    endTime: '',
+    startHour: '',
+    startMinute: '00',
     startPeriod: 'AM',
+    endHour: '',
+    endMinute: '00',
     endPeriod: 'AM',
   });
 
@@ -56,12 +66,12 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  const generateDisplayText = (range: Partial<TimeRange>) => {
-    if (!range.date || !range.startTime || !range.endTime) return '';
+  const generateDisplayText = (date: string, startTime: string, endTime: string) => {
+    if (!date || !startTime || !endTime) return '';
     
-    const dateDisplay = formatDateForDisplay(range.date);
-    const startTimeDisplay = formatTimeForDisplay(range.startTime);
-    const endTimeDisplay = formatTimeForDisplay(range.endTime);
+    const dateDisplay = formatDateForDisplay(date);
+    const startTimeDisplay = formatTimeForDisplay(startTime);
+    const endTimeDisplay = formatTimeForDisplay(endTime);
     
     return `${dateDisplay} from ${startTimeDisplay} to ${endTimeDisplay}`;
   };
@@ -71,7 +81,7 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
     const options = [];
     for (let i = 1; i <= 12; i++) {
       options.push({
-        value: i,
+        value: i.toString(),
         label: i.toString()
       });
     }
@@ -89,41 +99,42 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
   };
 
   // Convert 12-hour time to 24-hour format
-  const convertTo24Hour = (hour: number, minute: string, period: string) => {
-    let hour24 = hour;
-    if (period === 'AM' && hour === 12) {
+  const convertTo24Hour = (hour: string, minute: string, period: 'AM' | 'PM') => {
+    if (!hour) return '';
+    
+    let hour24 = parseInt(hour);
+    if (period === 'AM' && hour24 === 12) {
       hour24 = 0;
-    } else if (period === 'PM' && hour !== 12) {
-      hour24 = hour + 12;
+    } else if (period === 'PM' && hour24 !== 12) {
+      hour24 = hour24 + 12;
     }
     return `${hour24.toString().padStart(2, '0')}:${minute}`;
   };
 
   const addTimeRange = () => {
-    if (!newRange.date || !newRange.startTime || !newRange.endTime) return;
-
-    // Extract period from time for backward compatibility
-    const [startHours] = newRange.startTime.split(':');
-    const [endHours] = newRange.endTime.split(':');
-    const startPeriod = parseInt(startHours, 10) >= 12 ? 'PM' : 'AM';
-    const endPeriod = parseInt(endHours, 10) >= 12 ? 'PM' : 'AM';
+    const startTime = convertTo24Hour(newRange.startHour, newRange.startMinute, newRange.startPeriod);
+    const endTime = convertTo24Hour(newRange.endHour, newRange.endMinute, newRange.endPeriod);
+    
+    if (!newRange.date || !startTime || !endTime) return;
 
     const range: TimeRange = {
       id: `range-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       date: newRange.date,
-      startTime: newRange.startTime,
-      endTime: newRange.endTime,
-      startPeriod,
-      endPeriod,
-      displayText: generateDisplayText(newRange),
+      startTime,
+      endTime,
+      startPeriod: newRange.startPeriod,
+      endPeriod: newRange.endPeriod,
+      displayText: generateDisplayText(newRange.date, startTime, endTime),
     };
 
     onChange([...selectedRanges, range]);
     setNewRange({
       date: '',
-      startTime: '',
-      endTime: '',
+      startHour: '',
+      startMinute: '00',
       startPeriod: 'AM',
+      endHour: '',
+      endMinute: '00',
       endPeriod: 'AM',
     });
   };
@@ -135,6 +146,8 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
   const nextWeekDates = getNextWeekDates();
   const hourOptions = generateHourOptions();
   const minuteOptions = generateMinuteOptions();
+
+  const isFormValid = newRange.date && newRange.startHour && newRange.endHour;
 
   return (
     <div className="space-y-4">
@@ -195,14 +208,8 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
               <label className="block text-sm text-gray-600 mb-2">From:</label>
               <div className="grid grid-cols-3 gap-2">
                 <select
-                  value={newRange.startTime ? newRange.startTime.split(':')[0] === '00' ? '12' : (parseInt(newRange.startTime.split(':')[0]) > 12 ? (parseInt(newRange.startTime.split(':')[0]) - 12).toString() : newRange.startTime.split(':')[0]) : ''}
-                  onChange={(e) => {
-                    const hour = parseInt(e.target.value);
-                    const minute = newRange.startTime ? newRange.startTime.split(':')[1] : '00';
-                    const period = newRange.startPeriod || 'AM';
-                    const time24 = convertTo24Hour(hour, minute, period);
-                    setNewRange(prev => ({ ...prev, startTime: time24 }));
-                  }}
+                  value={newRange.startHour}
+                  onChange={(e) => setNewRange(prev => ({ ...prev, startHour: e.target.value }))}
                   className="form-input text-sm"
                 >
                   <option value="">Hour</option>
@@ -214,17 +221,10 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 </select>
                 
                 <select
-                  value={newRange.startTime ? newRange.startTime.split(':')[1] : ''}
-                  onChange={(e) => {
-                    const hour = newRange.startTime ? (parseInt(newRange.startTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.startTime.split(':')[0]) > 12 ? parseInt(newRange.startTime.split(':')[0]) - 12 : parseInt(newRange.startTime.split(':')[0])) : 1;
-                    const minute = e.target.value;
-                    const period = newRange.startPeriod || 'AM';
-                    const time24 = convertTo24Hour(hour, minute, period);
-                    setNewRange(prev => ({ ...prev, startTime: time24 }));
-                  }}
+                  value={newRange.startMinute}
+                  onChange={(e) => setNewRange(prev => ({ ...prev, startMinute: e.target.value }))}
                   className="form-input text-sm"
                 >
-                  <option value="">Min</option>
                   {minuteOptions.map((option) => (
                     <option key={`start-minute-${option.value}`} value={option.value}>
                       {option.label}
@@ -233,14 +233,8 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 </select>
                 
                 <select
-                  value={newRange.startPeriod || 'AM'}
-                  onChange={(e) => {
-                    const hour = newRange.startTime ? (parseInt(newRange.startTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.startTime.split(':')[0]) > 12 ? parseInt(newRange.startTime.split(':')[0]) - 12 : parseInt(newRange.startTime.split(':')[0])) : 1;
-                    const minute = newRange.startTime ? newRange.startTime.split(':')[1] : '00';
-                    const period = e.target.value as 'AM' | 'PM';
-                    const time24 = convertTo24Hour(hour, minute, period);
-                    setNewRange(prev => ({ ...prev, startTime: time24, startPeriod: period }));
-                  }}
+                  value={newRange.startPeriod}
+                  onChange={(e) => setNewRange(prev => ({ ...prev, startPeriod: e.target.value as 'AM' | 'PM' }))}
                   className="form-input text-sm"
                 >
                   <option value="AM">AM</option>
@@ -254,14 +248,8 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
               <label className="block text-sm text-gray-600 mb-2">To:</label>
               <div className="grid grid-cols-3 gap-2">
                 <select
-                  value={newRange.endTime ? newRange.endTime.split(':')[0] === '00' ? '12' : (parseInt(newRange.endTime.split(':')[0]) > 12 ? (parseInt(newRange.endTime.split(':')[0]) - 12).toString() : newRange.endTime.split(':')[0]) : ''}
-                  onChange={(e) => {
-                    const hour = parseInt(e.target.value);
-                    const minute = newRange.endTime ? newRange.endTime.split(':')[1] : '00';
-                    const period = newRange.endPeriod || 'AM';
-                    const time24 = convertTo24Hour(hour, minute, period);
-                    setNewRange(prev => ({ ...prev, endTime: time24 }));
-                  }}
+                  value={newRange.endHour}
+                  onChange={(e) => setNewRange(prev => ({ ...prev, endHour: e.target.value }))}
                   className="form-input text-sm"
                 >
                   <option value="">Hour</option>
@@ -273,17 +261,10 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 </select>
                 
                 <select
-                  value={newRange.endTime ? newRange.endTime.split(':')[1] : ''}
-                  onChange={(e) => {
-                    const hour = newRange.endTime ? (parseInt(newRange.endTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.endTime.split(':')[0]) > 12 ? parseInt(newRange.endTime.split(':')[0]) - 12 : parseInt(newRange.endTime.split(':')[0])) : 1;
-                    const minute = e.target.value;
-                    const period = newRange.endPeriod || 'AM';
-                    const time24 = convertTo24Hour(hour, minute, period);
-                    setNewRange(prev => ({ ...prev, endTime: time24 }));
-                  }}
+                  value={newRange.endMinute}
+                  onChange={(e) => setNewRange(prev => ({ ...prev, endMinute: e.target.value }))}
                   className="form-input text-sm"
                 >
-                  <option value="">Min</option>
                   {minuteOptions.map((option) => (
                     <option key={`end-minute-${option.value}`} value={option.value}>
                       {option.label}
@@ -292,14 +273,8 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 </select>
                 
                 <select
-                  value={newRange.endPeriod || 'AM'}
-                  onChange={(e) => {
-                    const hour = newRange.endTime ? (parseInt(newRange.endTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.endTime.split(':')[0]) > 12 ? parseInt(newRange.endTime.split(':')[0]) - 12 : parseInt(newRange.endTime.split(':')[0])) : 1;
-                    const minute = newRange.endTime ? newRange.endTime.split(':')[1] : '00';
-                    const period = e.target.value as 'AM' | 'PM';
-                    const time24 = convertTo24Hour(hour, minute, period);
-                    setNewRange(prev => ({ ...prev, endTime: time24, endPeriod: period }));
-                  }}
+                  value={newRange.endPeriod}
+                  onChange={(e) => setNewRange(prev => ({ ...prev, endPeriod: e.target.value as 'AM' | 'PM' }))}
                   className="form-input text-sm"
                 >
                   <option value="AM">AM</option>
@@ -313,10 +288,10 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
           <button
             type="button"
             onClick={addTimeRange}
-            disabled={!newRange.date || !newRange.startTime || !newRange.endTime}
+            disabled={!isFormValid}
             className={cn(
               'flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-all',
-              newRange.date && newRange.startTime && newRange.endTime
+              isFormValid
                 ? 'border-primary-500 bg-primary-50 text-primary-700 hover:bg-primary-100'
                 : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
             )}
