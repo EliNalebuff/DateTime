@@ -11,10 +11,13 @@ const nextConfig = {
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   },
   async rewrites() {
+    // Always use Railway backend
+    const apiBaseUrl = 'https://datetime-production.up.railway.app';
+      
     return [
       {
         source: '/api/:path*',
-        destination: 'https://datetime-production.up.railway.app/api/:path*',
+        destination: `${apiBaseUrl}/api/:path*`,
       },
     ]
   },
