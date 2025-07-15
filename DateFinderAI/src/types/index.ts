@@ -215,6 +215,62 @@ export interface DateCardProps {
   className?: string;
 }
 
+// Icebreaker Game Types
+export interface IcebreakerQuestion {
+  id: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  targetPerson: 'A' | 'B';
+  askedBy: 'A' | 'B';
+  category: string;
+  round: number;
+  isCustom?: boolean;
+}
+
+export interface IcebreakerAnswer {
+  questionId: string;
+  selectedAnswer: string;
+  isCorrect: boolean;
+  answeredBy: 'A' | 'B';
+  answeredAt: Date;
+}
+
+export interface IcebreakerCustomQuestion {
+  questionText: string;
+  askedBy: 'A' | 'B';
+  answeredBy: 'A' | 'B';
+  answer: string;
+  round: number;
+}
+
+export interface IcebreakerFunFact {
+  aboutPerson: 'A' | 'B';
+  fact: string;
+  category: string;
+}
+
+export interface IcebreakerGame {
+  id: string;
+  dateSessionUuid: string;
+  gameState: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  currentRound: number;
+  currentPlayer: 'A' | 'B';
+  isCustomQuestionRound: boolean;
+  isBonusRound: boolean;
+  questions: IcebreakerQuestion[];
+  answers: IcebreakerAnswer[];
+  customQuestions: IcebreakerCustomQuestion[];
+  funFacts: IcebreakerFunFact[];
+  scoreA: number;
+  scoreB: number;
+  scheduledFor?: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;

@@ -20,9 +20,23 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
     date: '',
     startTime: '',
     endTime: '',
-    startPeriod: 'PM',
-    endPeriod: 'PM',
+    startPeriod: 'AM',
+    endPeriod: 'AM',
   });
+
+  // Get the next 7 days starting from today
+  const getNextWeekDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+    
+    return dates;
+  };
 
   const formatDateForDisplay = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -33,23 +47,74 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
     });
   };
 
+  const formatTimeForDisplay = (time: string) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
   const generateDisplayText = (range: Partial<TimeRange>) => {
     if (!range.date || !range.startTime || !range.endTime) return '';
     
     const dateDisplay = formatDateForDisplay(range.date);
-    return `${dateDisplay} from ${range.startTime} ${range.startPeriod} to ${range.endTime} ${range.endPeriod}`;
+    const startTimeDisplay = formatTimeForDisplay(range.startTime);
+    const endTimeDisplay = formatTimeForDisplay(range.endTime);
+    
+    return `${dateDisplay} from ${startTimeDisplay} to ${endTimeDisplay}`;
+  };
+
+  // Generate hour options (1-12)
+  const generateHourOptions = () => {
+    const options = [];
+    for (let i = 1; i <= 12; i++) {
+      options.push({
+        value: i,
+        label: i.toString()
+      });
+    }
+    return options;
+  };
+
+  // Generate minute options (0, 15, 30, 45)
+  const generateMinuteOptions = () => {
+    return [
+      { value: '00', label: '00' },
+      { value: '15', label: '15' },
+      { value: '30', label: '30' },
+      { value: '45', label: '45' }
+    ];
+  };
+
+  // Convert 12-hour time to 24-hour format
+  const convertTo24Hour = (hour: number, minute: string, period: string) => {
+    let hour24 = hour;
+    if (period === 'AM' && hour === 12) {
+      hour24 = 0;
+    } else if (period === 'PM' && hour !== 12) {
+      hour24 = hour + 12;
+    }
+    return `${hour24.toString().padStart(2, '0')}:${minute}`;
   };
 
   const addTimeRange = () => {
     if (!newRange.date || !newRange.startTime || !newRange.endTime) return;
+
+    // Extract period from time for backward compatibility
+    const [startHours] = newRange.startTime.split(':');
+    const [endHours] = newRange.endTime.split(':');
+    const startPeriod = parseInt(startHours, 10) >= 12 ? 'PM' : 'AM';
+    const endPeriod = parseInt(endHours, 10) >= 12 ? 'PM' : 'AM';
 
     const range: TimeRange = {
       id: `range-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       date: newRange.date,
       startTime: newRange.startTime,
       endTime: newRange.endTime,
-      startPeriod: newRange.startPeriod || 'PM',
-      endPeriod: newRange.endPeriod || 'PM',
+      startPeriod,
+      endPeriod,
       displayText: generateDisplayText(newRange),
     };
 
@@ -58,8 +123,8 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
       date: '',
       startTime: '',
       endTime: '',
-      startPeriod: 'PM',
-      endPeriod: 'PM',
+      startPeriod: 'AM',
+      endPeriod: 'AM',
     });
   };
 
@@ -67,10 +132,9 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
     onChange(selectedRanges.filter(range => range.id !== id));
   };
 
-  const getMinDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
+  const nextWeekDates = getNextWeekDates();
+  const hourOptions = generateHourOptions();
+  const minuteOptions = generateMinuteOptions();
 
   return (
     <div className="space-y-4">
@@ -106,13 +170,22 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
           {/* Date Selection */}
           <div>
             <label className="block text-sm text-gray-600 mb-2">Date:</label>
-            <input
-              type="date"
+            <select
               value={newRange.date}
-              min={getMinDate()}
               onChange={(e) => setNewRange(prev => ({ ...prev, date: e.target.value }))}
               className="form-input"
-            />
+            >
+              <option value="">Select a date</option>
+              {nextWeekDates.map((date) => (
+                <option key={date.toISOString()} value={date.toISOString().split('T')[0]}>
+                  {date.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Time Range Selection */}
@@ -120,17 +193,55 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
             {/* Start Time */}
             <div>
               <label className="block text-sm text-gray-600 mb-2">From:</label>
-              <div className="flex space-x-2">
-                <input
-                  type="time"
-                  value={newRange.startTime}
-                  onChange={(e) => setNewRange(prev => ({ ...prev, startTime: e.target.value }))}
-                  className="form-input flex-1"
-                />
+              <div className="grid grid-cols-3 gap-2">
                 <select
-                  value={newRange.startPeriod}
-                  onChange={(e) => setNewRange(prev => ({ ...prev, startPeriod: e.target.value as 'AM' | 'PM' }))}
-                  className="form-input w-20"
+                  value={newRange.startTime ? newRange.startTime.split(':')[0] === '00' ? '12' : (parseInt(newRange.startTime.split(':')[0]) > 12 ? (parseInt(newRange.startTime.split(':')[0]) - 12).toString() : newRange.startTime.split(':')[0]) : ''}
+                  onChange={(e) => {
+                    const hour = parseInt(e.target.value);
+                    const minute = newRange.startTime ? newRange.startTime.split(':')[1] : '00';
+                    const period = newRange.startPeriod || 'AM';
+                    const time24 = convertTo24Hour(hour, minute, period);
+                    setNewRange(prev => ({ ...prev, startTime: time24 }));
+                  }}
+                  className="form-input text-sm"
+                >
+                  <option value="">Hour</option>
+                  {hourOptions.map((option) => (
+                    <option key={`start-hour-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={newRange.startTime ? newRange.startTime.split(':')[1] : ''}
+                  onChange={(e) => {
+                    const hour = newRange.startTime ? (parseInt(newRange.startTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.startTime.split(':')[0]) > 12 ? parseInt(newRange.startTime.split(':')[0]) - 12 : parseInt(newRange.startTime.split(':')[0])) : 1;
+                    const minute = e.target.value;
+                    const period = newRange.startPeriod || 'AM';
+                    const time24 = convertTo24Hour(hour, minute, period);
+                    setNewRange(prev => ({ ...prev, startTime: time24 }));
+                  }}
+                  className="form-input text-sm"
+                >
+                  <option value="">Min</option>
+                  {minuteOptions.map((option) => (
+                    <option key={`start-minute-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={newRange.startPeriod || 'AM'}
+                  onChange={(e) => {
+                    const hour = newRange.startTime ? (parseInt(newRange.startTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.startTime.split(':')[0]) > 12 ? parseInt(newRange.startTime.split(':')[0]) - 12 : parseInt(newRange.startTime.split(':')[0])) : 1;
+                    const minute = newRange.startTime ? newRange.startTime.split(':')[1] : '00';
+                    const period = e.target.value as 'AM' | 'PM';
+                    const time24 = convertTo24Hour(hour, minute, period);
+                    setNewRange(prev => ({ ...prev, startTime: time24, startPeriod: period }));
+                  }}
+                  className="form-input text-sm"
                 >
                   <option value="AM">AM</option>
                   <option value="PM">PM</option>
@@ -141,17 +252,55 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
             {/* End Time */}
             <div>
               <label className="block text-sm text-gray-600 mb-2">To:</label>
-              <div className="flex space-x-2">
-                <input
-                  type="time"
-                  value={newRange.endTime}
-                  onChange={(e) => setNewRange(prev => ({ ...prev, endTime: e.target.value }))}
-                  className="form-input flex-1"
-                />
+              <div className="grid grid-cols-3 gap-2">
                 <select
-                  value={newRange.endPeriod}
-                  onChange={(e) => setNewRange(prev => ({ ...prev, endPeriod: e.target.value as 'AM' | 'PM' }))}
-                  className="form-input w-20"
+                  value={newRange.endTime ? newRange.endTime.split(':')[0] === '00' ? '12' : (parseInt(newRange.endTime.split(':')[0]) > 12 ? (parseInt(newRange.endTime.split(':')[0]) - 12).toString() : newRange.endTime.split(':')[0]) : ''}
+                  onChange={(e) => {
+                    const hour = parseInt(e.target.value);
+                    const minute = newRange.endTime ? newRange.endTime.split(':')[1] : '00';
+                    const period = newRange.endPeriod || 'AM';
+                    const time24 = convertTo24Hour(hour, minute, period);
+                    setNewRange(prev => ({ ...prev, endTime: time24 }));
+                  }}
+                  className="form-input text-sm"
+                >
+                  <option value="">Hour</option>
+                  {hourOptions.map((option) => (
+                    <option key={`end-hour-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={newRange.endTime ? newRange.endTime.split(':')[1] : ''}
+                  onChange={(e) => {
+                    const hour = newRange.endTime ? (parseInt(newRange.endTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.endTime.split(':')[0]) > 12 ? parseInt(newRange.endTime.split(':')[0]) - 12 : parseInt(newRange.endTime.split(':')[0])) : 1;
+                    const minute = e.target.value;
+                    const period = newRange.endPeriod || 'AM';
+                    const time24 = convertTo24Hour(hour, minute, period);
+                    setNewRange(prev => ({ ...prev, endTime: time24 }));
+                  }}
+                  className="form-input text-sm"
+                >
+                  <option value="">Min</option>
+                  {minuteOptions.map((option) => (
+                    <option key={`end-minute-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={newRange.endPeriod || 'AM'}
+                  onChange={(e) => {
+                    const hour = newRange.endTime ? (parseInt(newRange.endTime.split(':')[0]) === 0 ? 12 : parseInt(newRange.endTime.split(':')[0]) > 12 ? parseInt(newRange.endTime.split(':')[0]) - 12 : parseInt(newRange.endTime.split(':')[0])) : 1;
+                    const minute = newRange.endTime ? newRange.endTime.split(':')[1] : '00';
+                    const period = e.target.value as 'AM' | 'PM';
+                    const time24 = convertTo24Hour(hour, minute, period);
+                    setNewRange(prev => ({ ...prev, endTime: time24, endPeriod: period }));
+                  }}
+                  className="form-input text-sm"
                 >
                   <option value="AM">AM</option>
                   <option value="PM">PM</option>

@@ -2,16 +2,23 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, ArrowRight, Sparkles, Users, Calendar, MapPin } from 'lucide-react';
+import { Heart, ArrowRight, Sparkles, Users, Calendar, MapPin, LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Button from '@/components/Button';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function WelcomePage() {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
+  const { user, logout } = useAuth();
 
   const handleStartPlanning = () => {
     router.push('/plan');
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
   };
 
   const fadeInUp = {
@@ -25,9 +32,33 @@ export default function WelcomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-romantic">
-      <div className="container mx-auto px-4 py-8">
-        <motion.div
-          className="max-w-4xl mx-auto text-center"
+        {/* Header with user info and logout */}
+        <div className="bg-white/90 backdrop-blur-sm border-b border-gray-200">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-semibold text-gray-900">DateFinder AI</h1>
+                  <p className="text-sm text-gray-700">Welcome back, {user?.name || user?.phone}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-gray-700"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-8">
+          <motion.div
+            className="max-w-4xl mx-auto text-center"
           initial="initial"
           animate="animate"
           variants={staggerChildren}
@@ -136,7 +167,7 @@ export default function WelcomePage() {
             </div>
           </motion.div>
         </motion.div>
+              </div>
       </div>
-    </div>
   );
 } 

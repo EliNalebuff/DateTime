@@ -42,6 +42,30 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
     return `${dayName}, ${monthDay} at ${displayHour}:${minutes} ${ampm}`;
   };
 
+  // Generate time options with 15-minute increments
+  const generateTimeOptions = () => {
+    const options = [];
+    
+    for (let i = 0; i < 24; i++) {
+      const hour = i.toString().padStart(2, '0');
+      const minutes = ['00', '15', '30', '45'];
+      
+      for (const minute of minutes) {
+        const time24 = `${hour}:${minute}`;
+        const hour12 = i === 0 ? 12 : i <= 12 ? i : i - 12;
+        const ampm = i < 12 ? 'AM' : 'PM';
+        const displayTime = `${hour12}:${minute} ${ampm}`;
+        
+        options.push({
+          value: time24,
+          label: displayTime
+        });
+      }
+    }
+    
+    return options;
+  };
+
   const addTimeSlot = () => {
     if (newSlot.date && newSlot.time && selectedSlots.length < maxSlots) {
       const id = `${newSlot.date}-${newSlot.time}`;
@@ -69,6 +93,7 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
   };
 
   const nextWeekDates = getNextWeekDates();
+  const timeOptions = generateTimeOptions();
 
   return (
     <div className="space-y-4">
@@ -144,24 +169,11 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="">Select a time</option>
-                      {Array.from({ length: 24 }, (_, i) => {
-                        const hour = i.toString().padStart(2, '0');
-                        const time12 = i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`;
-                        return (
-                          <option key={`${hour}:00`} value={`${hour}:00`}>
-                            {time12}
-                          </option>
-                        );
-                      })}
-                      {Array.from({ length: 24 }, (_, i) => {
-                        const hour = i.toString().padStart(2, '0');
-                        const time12 = i === 0 ? '12:30 AM' : i < 12 ? `${i}:30 AM` : i === 12 ? '12:30 PM' : `${i - 12}:30 PM`;
-                        return (
-                          <option key={`${hour}:30`} value={`${hour}:30`}>
-                            {time12}
-                          </option>
-                        );
-                      })}
+                      {timeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

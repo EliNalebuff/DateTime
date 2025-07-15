@@ -81,10 +81,14 @@ export default function PlanPage() {
     setError(null);
 
     try {
+      // Get auth token from localStorage
+      const authToken = localStorage.getItem('authToken');
+      
       const response = await fetch('/api/initiate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
         },
         body: JSON.stringify(formData),
       });
