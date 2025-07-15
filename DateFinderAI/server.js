@@ -1038,7 +1038,17 @@ app.post('/api/initiate', async (req, res) => {
       console.log('Session saved to temporary storage with UUID:', uuid);
     }
 
-            const shareUrl = `${process.env.BASE_URL}/date/${uuid}`;
+    // Determine the correct base URL for the share link
+    // Use the origin from the request headers if available (for development)
+    const origin = req.get('origin') || req.get('referer');
+    let baseUrl = process.env.BASE_URL;
+    
+    // If request is coming from localhost, use localhost for the share URL
+    if (origin && origin.includes('localhost')) {
+      baseUrl = origin;
+    }
+    
+    const shareUrl = `${baseUrl}/date/${uuid}`;
     console.log('Generated share URL:', shareUrl);
 
     res.json({
@@ -1126,10 +1136,18 @@ app.post('/api/respond/:uuid', async (req, res) => {
       console.log('Partner B data and date ideas saved to temporary storage');
     }
 
+    // Determine the correct base URL for the results link
+    const origin = req.get('origin') || req.get('referer');
+    let baseUrl = process.env.BASE_URL;
+    
+    if (origin && origin.includes('localhost')) {
+      baseUrl = origin;
+    }
+
     res.json({
       success: true,
       dateOptions: session.dateOptions,
-              resultsUrl: `${process.env.BASE_URL}/results/${uuid}`
+      resultsUrl: `${baseUrl}/results/${uuid}`
     });
   } catch (error) {
     console.error('Error in respond route:', error);
