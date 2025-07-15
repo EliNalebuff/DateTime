@@ -12,7 +12,8 @@ import MultiSelectChips from '@/components/MultiSelectChips';
 import Toggle from '@/components/Toggle';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ErrorMessage from '@/components/ErrorMessage';
-import { PartnerBData, TimeRange } from '@/types';
+import DateCard from '@/components/DateCard';
+import { PartnerBData, TimeRange, DateOption } from '@/types';
 import Slider from '@/components/Slider';
 
 const TOTAL_STEPS = 4;
@@ -78,7 +79,51 @@ export default function PartnerBPage() {
     }
   };
 
+  const [showDateSelection, setShowDateSelection] = useState(false);
+  const [dateOptions, setDateOptions] = useState<any[]>([]);
+  const [selectedDateIds, setSelectedDateIds] = useState<string[]>([]);
+
   const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // First, submit Partner B data to generate date ideas
+      const response = await fetch(`/api/respond/${uuid}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ partnerBData: formData }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit response');
+      }
+
+      // Show date selection screen
+      setDateOptions(data.dateOptions || []);
+      setShowDateSelection(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDateToggle = (dateId: string) => {
+    if (selectedDateIds.includes(dateId)) {
+      setSelectedDateIds(selectedDateIds.filter(id => id !== dateId));
+    } else if (selectedDateIds.length < 2) {
+      setSelectedDateIds([...selectedDateIds, dateId]);
+    }
+  };
+
+  const handleSubmitSelection = async () => {
+    if (selectedDateIds.length !== 2) return;
+
     setIsSubmitting(true);
     setError(null);
 
@@ -88,17 +133,17 @@ export default function PartnerBPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ selectedDateIds }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit response');
+        throw new Error(data.error || 'Failed to submit selection');
       }
 
-      // Redirect to results page
-      router.push(`/results/${uuid}`);
+      // Show success message
+      router.push(`/date-selection-complete/${uuid}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -192,6 +237,76 @@ export default function PartnerBPage() {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 }
   };
+
+  // Show date selection screen after form completion
+  if (showDateSelection) {
+    return (
+      <div className="min-h-screen bg-gradient-romantic">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-5xl mx-auto">
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={fadeInUp}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-12"
+            >
+              <div className="flex items-center justify-center mb-6">
+                <Heart className="h-8 w-8 text-primary-500 mr-2" fill="currentColor" />
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
+                  Perfect Date Ideas!
+                </h1>
+              </div>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Based on both of your preferences, we've created these amazing date ideas. 
+                Choose your 2 favorites to share with your date partner!
+              </p>
+            </motion.div>
+
+            <motion.div
+              variants={fadeInUp}
+              transition={{ duration: 0.6 }}
+              className="grid md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8"
+            >
+              {dateOptions.map((date: DateOption) => (
+                <DateCard
+                  key={date.id}
+                  date={date}
+                  selected={selectedDateIds.includes(date.id)}
+                  onSelect={handleDateToggle}
+                  showSelection={true}
+                />
+              ))}
+            </motion.div>
+
+            <motion.div
+              variants={fadeInUp}
+              transition={{ duration: 0.6 }}
+              className="bg-primary-50 border border-primary-200 rounded-xl p-6 text-center"
+            >
+              <h3 className="text-lg font-semibold text-primary-800 mb-2">
+                Select your 2 favorite date ideas
+              </h3>
+              <p className="text-primary-700 text-sm mb-4">
+                Your partner will choose between these 2 options ({selectedDateIds.length}/2 selected)
+              </p>
+              
+              <Button
+                size="lg"
+                onClick={handleSubmitSelection}
+                disabled={selectedDateIds.length !== 2 || isSubmitting}
+                loading={isSubmitting}
+                className="w-full md:w-auto"
+              >
+                Send to Partner
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-romantic">
@@ -387,8 +502,42 @@ function Step1TimeBasics({
 }) {
   const ageRangeOptions = ['20 and under', '21-28', '29-39', '40+'];
 
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    if (digits.length >= 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    } else if (digits.length >= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } else if (digits.length >= 3) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+    return digits;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    updateFormData('phone', formatted);
+  };
+
   return (
     <div className="space-y-6">
+      <QuestionCard question="What's your phone number?">
+        <input
+          type="tel"
+          value={formData.phone}
+          onChange={handlePhoneChange}
+          placeholder="(555) 123-4567"
+          className="form-input"
+          maxLength={14}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          We'll send you updates about your date plans
+        </p>
+      </QuestionCard>
+
       <QuestionCard question="Which of these times work for you?">
         <TimeRangeSelector
           proposedTimeRanges={proposedTimeRanges}
