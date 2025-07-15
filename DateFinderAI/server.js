@@ -222,7 +222,7 @@ const IcebreakerGameSchema = new mongoose.Schema({
 const IcebreakerGame = mongoose.model('IcebreakerGame', IcebreakerGameSchema);
 
 // JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Twilio Client
 const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN ? 
