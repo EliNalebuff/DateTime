@@ -27,6 +27,7 @@ export default function PlanPage() {
   const [copied, setCopied] = useState(false);
 
   const [formData, setFormData] = useState<PartnerAData>({
+    phone: '',
     location: '',
     proposedTimeRanges: [],
     dateDuration: '',
@@ -122,7 +123,7 @@ export default function PlanPage() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.location && formData.proposedTimeRanges.length > 0 && formData.dateDuration && formData.ageRange;
+        return formData.phone && formData.location && formData.proposedTimeRanges.length > 0 && formData.dateDuration && formData.ageRange;
       case 2:
         return formData.budget > 0;
       case 3:
@@ -343,8 +344,42 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
   const durationOptions = ['1-2 hours', '2-3 hours', '3-4 hours', '4+ hours'];
   const ageRangeOptions = ['20 and under', '21-28', '29-39', '40+'];
 
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    if (digits.length >= 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    } else if (digits.length >= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } else if (digits.length >= 3) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+    return digits;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    updateFormData('phone', formatted);
+  };
+
   return (
     <div className="space-y-6">
+      <QuestionCard question="What's your phone number?">
+        <input
+          type="tel"
+          value={formData.phone}
+          onChange={handlePhoneChange}
+          placeholder="(555) 123-4567"
+          className="form-input"
+          maxLength={14}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          We'll send you updates about your date plans
+        </p>
+      </QuestionCard>
+
       <QuestionCard question="Where should we plan the date?">
         <LocationInput
           value={formData.location}

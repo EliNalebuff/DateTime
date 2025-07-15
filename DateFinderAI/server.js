@@ -88,6 +88,7 @@ const DateSessionSchema = new mongoose.Schema({
     personalInsight: String,
   },
   partnerB: {
+    phone: String, // Partner B's phone number
     selectedTimeRanges: [String],
     ageRange: String,
     budget: Number,
@@ -134,7 +135,7 @@ const DateSessionSchema = new mongoose.Schema({
   finalChoice: String, // Partner B's final choice
   status: { 
     type: String, 
-    enum: ['initiated', 'partner_b_responded', 'partner_a_selected', 'finalized'], 
+    enum: ['initiated', 'partner_b_responded', 'partner_b_selected', 'finalized'], 
     default: 'initiated' 
   },
   createdAt: { type: Date, default: Date.now },
@@ -315,6 +316,46 @@ const sendIcebreakerGameSMS = async (phone, gameId) => {
   } catch (error) {
     console.error('Icebreaker game SMS sending error:', error);
     return { success: false, message: 'Failed to send icebreaker game SMS' };
+  }
+};
+
+const sendPartnerAFinalChoiceSMS = async (phone, finalChoiceUrl) => {
+  if (!twilioClient) {
+    console.log('Twilio not configured. Would send Partner A final choice SMS:', phone, finalChoiceUrl);
+    return { success: true, message: 'SMS sent (simulated)' };
+  }
+  
+  try {
+    const message = await twilioClient.messages.create({
+      body: `🎉 Great news! Your date partner has narrowed it down to 2 perfect options.\n\nNow it's time for you to choose which one sounds best!\n\n${finalChoiceUrl}\n\nClick the link to make your final choice! 💕`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: phone
+    });
+    console.log('Partner A final choice SMS sent successfully:', message.sid);
+    return { success: true, message: 'Partner A final choice SMS sent successfully' };
+  } catch (error) {
+    console.error('Partner A final choice SMS sending error:', error);
+    return { success: false, message: 'Failed to send Partner A final choice SMS' };
+  }
+};
+
+const sendPartnerBConfirmationSMS = async (phone, finalDate) => {
+  if (!twilioClient) {
+    console.log('Twilio not configured. Would send Partner B confirmation SMS:', phone, finalDate.title);
+    return { success: true, message: 'SMS sent (simulated)' };
+  }
+  
+  try {
+    const message = await twilioClient.messages.create({
+      body: `🎉 Your date is confirmed!\n\nYour partner chose: ${finalDate.title}\n📍 ${finalDate.location}\n💰 ${finalDate.cost}\n⏱️ ${finalDate.duration}\n\n${finalDate.description}\n\nTime to make some memories! 💕`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: phone
+    });
+    console.log('Partner B confirmation SMS sent successfully:', message.sid);
+    return { success: true, message: 'Partner B confirmation SMS sent successfully' };
+  } catch (error) {
+    console.error('Partner B confirmation SMS sending error:', error);
+    return { success: false, message: 'Failed to send Partner B confirmation SMS' };
   }
 };
 
@@ -998,19 +1039,11 @@ app.post('/api/initiate', async (req, res) => {
     const uuid = uuidv4();
     const partnerAData = req.body;
     
-    // Get phone from auth if available, otherwise use a default for testing
-    let originatorPhone = 'test-user'; // Default for testing
+    // Get phone from form data
+    const originatorPhone = partnerAData.phone;
     
-    // Check if user is authenticated
-    const authHeader = req.headers['authorization'];
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        originatorPhone = decoded.phone;
-      } catch (err) {
-        console.log('Invalid token, using default phone');
-      }
+    if (!originatorPhone) {
+      return res.status(400).json({ success: false, error: 'Phone number is required' });
     }
 
     console.log('Generated UUID:', uuid);
@@ -1094,11 +1127,11 @@ app.get('/api/date/:uuid', async (req, res) => {
   }
 });
 
-// POST /api/respond/:uuid - Partner B submits their preferences
+// POST /api/respond/:uuid - Partner B submits their preferences and selects 2 dates
 app.post('/api/respond/:uuid', async (req, res) => {
   try {
     const { uuid } = req.params;
-    const partnerBData = req.body;
+    const { partnerBData, selectedDateIds } = req.body;
     let session = null;
     let storageType = '';
 
@@ -1119,36 +1152,89 @@ app.post('/api/respond/:uuid', async (req, res) => {
       return res.status(400).json({ success: false, error: 'This date session has already been responded to.' });
     }
 
-    session.partnerB = partnerBData;
-    session.status = 'partner_b_responded';
-    session.updatedAt = new Date();
+    // If this is the first step (Partner B filling out preferences), generate date ideas
+    if (partnerBData && !selectedDateIds) {
+      session.partnerB = partnerBData;
+      session.status = 'partner_b_responded';
+      session.updatedAt = new Date();
 
-    // Generate date ideas using the LLM
-    const dateIdeas = await generateDateIdeas(session.partnerA, session.partnerB);
-    session.dateOptions = dateIdeas;
+      // Generate date ideas using the LLM
+      const dateIdeas = await generateDateIdeas(session.partnerA, session.partnerB);
+      session.dateOptions = dateIdeas;
 
-    // Save the updated session
-    if (storageType === 'mongo') {
-      await session.save();
-      console.log('Partner B data and date ideas saved to MongoDB');
+      // Save the updated session
+      if (storageType === 'mongo') {
+        await session.save();
+        console.log('Partner B data and date ideas saved to MongoDB');
+      } else {
+        tempSessions.set(uuid, session);
+        console.log('Partner B data and date ideas saved to temporary storage');
+      }
+
+      // Determine the correct base URL for the results link
+      const origin = req.get('origin') || req.get('referer');
+      let baseUrl = process.env.BASE_URL;
+      
+      if (origin && origin.includes('localhost')) {
+        baseUrl = origin;
+      }
+
+      res.json({
+        success: true,
+        dateOptions: session.dateOptions,
+        resultsUrl: `${baseUrl}/results/${uuid}`
+      });
+    } 
+    // If this is the second step (Partner B selecting 2 dates)
+    else if (selectedDateIds) {
+      if (!selectedDateIds || selectedDateIds.length !== 2) {
+        return res.status(400).json({ success: false, error: 'Must select exactly 2 date options' });
+      }
+
+      session.selectedOptions = selectedDateIds;
+      session.status = 'partner_b_selected';
+      session.updatedAt = new Date();
+
+      // Save the updated session
+      if (storageType === 'mongo') {
+        await session.save();
+        console.log('Partner B date selections saved to MongoDB');
+      } else {
+        tempSessions.set(uuid, session);
+        console.log('Partner B date selections saved to temporary storage');
+      }
+
+      // Send SMS to Partner A (originator) with link to choose final date
+      if (session.originatorPhone) {
+        try {
+          const origin = req.get('origin') || req.get('referer');
+          let baseUrl = process.env.BASE_URL;
+          
+          if (origin && origin.includes('localhost')) {
+            baseUrl = origin;
+          }
+
+          const finalChoiceUrl = `${baseUrl}/final-choice/${uuid}`;
+          
+          console.log('Sending SMS to Partner A for final choice:', session.originatorPhone);
+          const smsResult = await sendPartnerAFinalChoiceSMS(session.originatorPhone, finalChoiceUrl);
+          if (smsResult.success) {
+            console.log('Partner A final choice SMS sent successfully');
+          } else {
+            console.warn('Failed to send Partner A final choice SMS:', smsResult.message);
+          }
+        } catch (smsError) {
+          console.error('Error sending Partner A final choice SMS:', smsError);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Date options selected. Partner A has been notified to make the final choice.'
+      });
     } else {
-      tempSessions.set(uuid, session);
-      console.log('Partner B data and date ideas saved to temporary storage');
+      return res.status(400).json({ success: false, error: 'Invalid request. Must provide either partnerBData or selectedDateIds.' });
     }
-
-    // Determine the correct base URL for the results link
-    const origin = req.get('origin') || req.get('referer');
-    let baseUrl = process.env.BASE_URL;
-    
-    if (origin && origin.includes('localhost')) {
-      baseUrl = origin;
-    }
-
-    res.json({
-      success: true,
-      dateOptions: session.dateOptions,
-      resultsUrl: `${baseUrl}/results/${uuid}`
-    });
   } catch (error) {
     console.error('Error in respond route:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -1239,7 +1325,135 @@ app.post('/api/select/:uuid', async (req, res) => {
   }
 });
 
-// POST /api/finalize/:uuid - Partner B makes final choice
+// GET /api/final-choice/:uuid - Get 2 selected dates for Partner A to choose from
+app.get('/api/final-choice/:uuid', async (req, res) => {
+  try {
+    const { uuid } = req.params;
+    let session = null;
+
+    // Try to find in MongoDB first
+    try {
+      session = await DateSession.findOne({ uuid });
+    } catch (mongoError) {
+      session = tempSessions.get(uuid);
+    }
+
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'Session not found' });
+    }
+
+    if (session.status !== 'partner_b_selected') {
+      return res.status(400).json({ success: false, error: 'Invalid session status' });
+    }
+
+    // Get the 2 selected date options
+    const selectedDates = session.dateOptions.filter(option => 
+      session.selectedOptions.includes(option.id)
+    );
+
+    res.json({
+      success: true,
+      selectedDates,
+      sessionStatus: session.status
+    });
+  } catch (error) {
+    console.error('Error fetching final choice options:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/final-choice/:uuid - Partner A makes final choice
+app.post('/api/final-choice/:uuid', async (req, res) => {
+  try {
+    const { uuid } = req.params;
+    const { finalChoice } = req.body;
+
+    let session = null;
+    let usingTempStorage = false;
+
+    // Try to find in MongoDB first
+    try {
+      session = await DateSession.findOne({ uuid });
+    } catch (mongoError) {
+      session = tempSessions.get(uuid);
+      usingTempStorage = true;
+    }
+
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'Session not found' });
+    }
+
+    if (session.status !== 'partner_b_selected') {
+      return res.status(400).json({ success: false, error: 'Invalid session status' });
+    }
+
+    if (!session.selectedOptions.includes(finalChoice)) {
+      return res.status(400).json({ success: false, error: 'Invalid final choice' });
+    }
+
+    session.finalChoice = finalChoice;
+    session.status = 'finalized';
+    session.updatedAt = new Date();
+
+    // Save the updated session
+    try {
+      if (!usingTempStorage) {
+        await session.save();
+      } else {
+        tempSessions.set(uuid, session);
+      }
+    } catch (mongoError) {
+      tempSessions.set(uuid, session);
+    }
+
+    const finalDate = session.dateOptions.find(option => option.id === finalChoice);
+
+    // Send SMS to Partner B with the final date choice
+    if (session.partnerB?.phone) {
+      try {
+        console.log('Sending confirmation SMS to Partner B:', session.partnerB.phone);
+        const smsResult = await sendPartnerBConfirmationSMS(session.partnerB.phone, finalDate);
+        if (smsResult.success) {
+          console.log('Partner B confirmation SMS sent successfully');
+        } else {
+          console.warn('Failed to send Partner B confirmation SMS:', smsResult.message);
+        }
+      } catch (smsError) {
+        console.error('Error sending Partner B confirmation SMS:', smsError);
+      }
+    }
+
+    // Send SMS to Partner A with the final date details
+    if (session.originatorPhone) {
+      try {
+        const selectedTimeRange = session.partnerB?.selectedTimeRanges?.length > 0 
+          ? session.partnerA.proposedTimeRanges.find(tr => session.partnerB.selectedTimeRanges.includes(tr.id))?.displayText
+          : null;
+
+        console.log('Sending final date SMS to Partner A:', session.originatorPhone);
+        const smsResult = await sendFinalDateSMS(session.originatorPhone, finalDate, selectedTimeRange);
+        if (smsResult.success) {
+          console.log('Final date SMS sent successfully to Partner A');
+        } else {
+          console.warn('Failed to send final date SMS to Partner A:', smsResult.message);
+        }
+      } catch (smsError) {
+        console.error('Error sending final date SMS to Partner A:', smsError);
+      }
+    }
+
+    res.json({
+      success: true,
+      finalDate,
+      message: 'Date confirmed! Both partners have been notified.'
+    });
+  } catch (error) {
+    console.error('Error making final choice:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/finalize/:uuid - Partner B makes final choice (DEPRECATED - keeping for compatibility)
 app.post('/api/finalize/:uuid', async (req, res) => {
   try {
     const { uuid } = req.params;

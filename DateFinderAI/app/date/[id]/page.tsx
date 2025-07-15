@@ -31,6 +31,7 @@ export default function PartnerBPage() {
 
   const [proposedTimeRanges, setProposedTimeRanges] = useState<TimeRange[]>([]);
   const [formData, setFormData] = useState<PartnerBData>({
+    phone: '',
     selectedTimeRanges: [],
     ageRange: '',
     budget: 100,
@@ -108,7 +109,7 @@ export default function PartnerBPage() {
   const isStepValid = (step: number) => {
     switch (step) {
       case 1:
-        return formData.selectedTimeRanges.length > 0 && formData.ageRange;
+        return formData.phone && formData.selectedTimeRanges.length > 0 && formData.ageRange;
       case 2:
         return formData.budget > 0;
       case 3:
