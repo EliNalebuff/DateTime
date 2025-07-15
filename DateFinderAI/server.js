@@ -1147,13 +1147,17 @@ app.post('/api/respond/:uuid', async (req, res) => {
     if (!session) {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
-    
-    if (session.status !== 'initiated') {
-      return res.status(400).json({ success: false, error: 'This date session has already been responded to.' });
-    }
 
+    console.log('Request body:', { partnerBData: !!partnerBData, selectedDateIds: !!selectedDateIds });
+    console.log('Session status:', session.status);
+    
     // If this is the first step (Partner B filling out preferences), generate date ideas
     if (partnerBData && !selectedDateIds) {
+      console.log('Taking first path: Partner B submitting preferences');
+      if (session.status !== 'initiated') {
+        console.log('Error: Session status is not initiated, it is:', session.status);
+        return res.status(400).json({ success: false, error: 'This date session has already been responded to.' });
+      }
       session.partnerB = partnerBData;
       session.status = 'partner_b_responded';
       session.updatedAt = new Date();
@@ -1187,6 +1191,12 @@ app.post('/api/respond/:uuid', async (req, res) => {
     } 
     // If this is the second step (Partner B selecting 2 dates)
     else if (selectedDateIds) {
+      console.log('Taking second path: Partner B selecting dates');
+      if (session.status !== 'partner_b_responded') {
+        console.log('Error: Session status is not partner_b_responded, it is:', session.status);
+        return res.status(400).json({ success: false, error: 'Invalid session status for date selection.' });
+      }
+      
       if (!selectedDateIds || selectedDateIds.length !== 2) {
         return res.status(400).json({ success: false, error: 'Must select exactly 2 date options' });
       }
@@ -1233,6 +1243,7 @@ app.post('/api/respond/:uuid', async (req, res) => {
         message: 'Date options selected. Partner A has been notified to make the final choice.'
       });
     } else {
+      console.log('Taking neither path - invalid request');
       return res.status(400).json({ success: false, error: 'Invalid request. Must provide either partnerBData or selectedDateIds.' });
     }
   } catch (error) {
