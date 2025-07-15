@@ -4,7 +4,7 @@ const nextConfig = {
     appDir: true,
   },
   images: {
-    domains: ['localhost'],
+            domains: ['localhost', process.env.BASE_URL?.replace('https://', '').replace('http://', '')].filter(Boolean),
   },
   env: {
     MONGODB_URI: process.env.MONGODB_URI,

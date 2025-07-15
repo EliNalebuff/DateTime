@@ -28,7 +28,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/datefinder-ai';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -304,7 +304,7 @@ const sendIcebreakerGameSMS = async (phone, gameId) => {
   }
   
   try {
-    const gameUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/icebreaker/${gameId}`;
+            const gameUrl = `${process.env.BASE_URL}/icebreaker/${gameId}`;
     const message = await twilioClient.messages.create({
       body: `🎮 Time for a fun icebreaker game!\n\nGet to know each other better with this quick guessing game. Both of you can play together!\n\n${gameUrl}\n\nHave fun! 💕`,
       from: process.env.TWILIO_PHONE_NUMBER,
@@ -327,7 +327,7 @@ const scheduleIcebreakerGame = async (uuid) => {
       console.log('Creating and sending icebreaker game for session:', uuid);
       
       // Create the icebreaker game
-      const response = await fetch(`http://localhost:${PORT}/api/icebreaker/create/${uuid}`, {
+      const response = await fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/api/icebreaker/create/${uuid}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1024,7 +1024,7 @@ app.post('/api/initiate', authenticateToken, async (req, res) => {
       console.log('Session saved to temporary storage with UUID:', uuid);
     }
 
-    const shareUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/date/${uuid}`;
+            const shareUrl = `${process.env.BASE_URL}/date/${uuid}`;
     console.log('Generated share URL:', shareUrl);
 
     res.json({
@@ -1115,7 +1115,7 @@ app.post('/api/respond/:uuid', async (req, res) => {
     res.json({
       success: true,
       dateOptions: session.dateOptions,
-      resultsUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/results/${uuid}`
+              resultsUrl: `${process.env.BASE_URL}/results/${uuid}`
     });
   } catch (error) {
     console.error('Error in respond route:', error);
