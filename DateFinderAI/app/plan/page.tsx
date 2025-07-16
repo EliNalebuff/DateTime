@@ -47,6 +47,8 @@ export default function PlanPage() {
     customDealbreaker: '',
     publicPrivate: 'public',
     indoorOutdoor: 'either',
+    hobbiesInterests: [], // Changed to array
+    customHobbies: '', // New field for custom hobbies
     // Personal information (optional)
     sportsTeams: '',
     workDescription: '',
@@ -56,7 +58,6 @@ export default function PlanPage() {
     roleModels: '',
     travelExperience: '',
     musicPreferences: '',
-    hobbiesInterests: '',
     culturalBackground: '',
     personalInsight: '',
   });
@@ -66,6 +67,18 @@ export default function PlanPage() {
   };
 
   const handleNext = () => {
+    // Validate hobbies selection for Step 3
+    if (currentStep === 3) {
+      const customHobbiesCount = formData.customHobbies.trim() ? formData.customHobbies.split(',').filter(h => h.trim()).length : 0;
+      const totalHobbiesCount = formData.hobbiesInterests.length + customHobbiesCount;
+      
+      if (totalHobbiesCount < 3) {
+        setError('Please select or add at least 3 hobbies and interests to continue.');
+        return;
+      }
+    }
+    
+    setError(null);
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep(prev => prev + 1);
     }
@@ -533,6 +546,18 @@ function Step3Preferences({ formData, updateFormData }: { formData: PartnerAData
     'Interactive', 'Romantic', 'Adventurous', 'Relaxed', 'Unique'
   ];
 
+  const hobbiesOptions = [
+    'Reading', 'Writing', 'Photography', 'Painting', 'Drawing', 'Cooking', 'Baking', 'Gardening',
+    'Hiking', 'Running', 'Cycling', 'Swimming', 'Rock Climbing', 'Yoga', 'Dancing', 'Martial Arts',
+    'Gaming', 'Board Games', 'Chess', 'Puzzles', 'Music', 'Singing', 'Playing Instruments', 'DJing',
+    'Movies', 'Theater', 'Stand-up Comedy', 'Museums', 'Art Galleries', 'Concerts', 'Festivals',
+    'Travel', 'Languages', 'History', 'Science', 'Technology', 'Programming', 'Volunteering',
+    'Wine Tasting', 'Coffee', 'Craft Beer', 'Cocktails', 'Fashion', 'Shopping', 'Collecting',
+    'Sports', 'Soccer', 'Basketball', 'Tennis', 'Golf', 'Baseball', 'Football', 'Hockey',
+    'Camping', 'Fishing', 'Hunting', 'Skiing', 'Snowboarding', 'Surfing', 'Sailing', 'Kayaking',
+    'Meditation', 'Mindfulness', 'Astrology', 'Tarot', 'Spirituality', 'Philosophy', 'Psychology'
+  ];
+
   const dealbreakerOptions = [
     'No bars', 'No loud places', 'No outdoor walking', 'No crowds',
     'No alcohol', 'No physical activities', 'No late nights', 'No expensive places'
@@ -548,6 +573,45 @@ function Step3Preferences({ formData, updateFormData }: { formData: PartnerAData
           maxSelections={3}
           placeholder="Pick 1-3 vibes that match your mood..."
         />
+      </QuestionCard>
+
+      <QuestionCard question="What are your hobbies and interests? (Required)">
+        <MultiSelectChips
+          options={hobbiesOptions}
+          selected={formData.hobbiesInterests}
+          onChange={(selected) => updateFormData('hobbiesInterests', selected)}
+          placeholder="Select your hobbies and interests from the options below..."
+        />
+        <div className="mt-4">
+          <input
+            type="text"
+            value={formData.customHobbies}
+            onChange={(e) => updateFormData('customHobbies', e.target.value)}
+            placeholder="Add your own hobbies/interests (comma-separated)..."
+            className="form-input"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Don't see your hobby? Add it here! Use commas to separate multiple hobbies.
+          </p>
+        </div>
+        {(() => {
+          const customHobbiesCount = formData.customHobbies.trim() ? formData.customHobbies.split(',').filter(h => h.trim()).length : 0;
+          const totalHobbiesCount = formData.hobbiesInterests.length + customHobbiesCount;
+          
+          if (totalHobbiesCount < 3) {
+            return (
+              <p className="text-sm text-red-600 mt-2">
+                Please select/add at least 3 hobbies and interests (you have {totalHobbiesCount}/3)
+              </p>
+            );
+          } else {
+            return (
+              <p className="text-sm text-green-600 mt-2">
+                ✓ Great! You have {totalHobbiesCount} hobbies and interests selected
+              </p>
+            );
+          }
+        })()}
       </QuestionCard>
 
       <QuestionCard question="Conversation and atmosphere preferences">
@@ -807,15 +871,7 @@ function Step5AboutYourself({ formData, updateFormData, onSubmit, isSubmitting, 
         />
       </QuestionCard>
 
-      <QuestionCard question="What are your hobbies and interests?">
-        <textarea
-          value={formData.hobbiesInterests || ''}
-          onChange={(e) => updateFormData('hobbiesInterests', e.target.value)}
-          placeholder="Share what you love to do in your free time..."
-          className="form-input min-h-[80px]"
-          rows={3}
-        />
-      </QuestionCard>
+
 
       <QuestionCard question="What is your ethnic/cultural background?">
         <input

@@ -36,6 +36,8 @@ export interface PartnerAData {
   customDealbreaker: string;
   publicPrivate: string;
   indoorOutdoor: string;
+  hobbiesInterests: string[]; // Moved from optional to required
+  customHobbies: string; // Custom hobbies not in the predefined list
   // Personal information (optional/skippable section)
   sportsTeams?: string;
   workDescription?: string;
@@ -45,7 +47,6 @@ export interface PartnerAData {
   roleModels?: string;
   travelExperience?: string;
   musicPreferences?: string;
-  hobbiesInterests?: string;
   culturalBackground?: string;
   personalInsight?: string;
 }
@@ -68,6 +69,8 @@ export interface PartnerBData {
   alcoholPreference: string;
   publicPrivate: string;
   indoorOutdoor: string;
+  hobbiesInterests: string[]; // Moved from optional to required
+  customHobbies: string; // Custom hobbies not in the predefined list
   // Personal information (optional/skippable section)
   sportsTeams?: string;
   workDescription?: string;
@@ -77,7 +80,6 @@ export interface PartnerBData {
   roleModels?: string;
   travelExperience?: string;
   musicPreferences?: string;
-  hobbiesInterests?: string;
   culturalBackground?: string;
   personalInsight?: string;
 }

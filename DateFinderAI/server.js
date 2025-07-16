@@ -77,6 +77,8 @@ const DateSessionSchema = new mongoose.Schema({
     customDealbreaker: String,
     publicPrivate: String,
     indoorOutdoor: String,
+    hobbiesInterests: [String], // Moved from optional to required preferences
+    customHobbies: String, // Custom hobbies not in predefined list
     // Personal information (optional)
     sportsTeams: String,
     workDescription: String,
@@ -86,7 +88,6 @@ const DateSessionSchema = new mongoose.Schema({
     roleModels: String,
     travelExperience: String,
     musicPreferences: String,
-    hobbiesInterests: String,
     culturalBackground: String,
     personalInsight: String,
   },
@@ -108,6 +109,8 @@ const DateSessionSchema = new mongoose.Schema({
     alcoholPreference: String,
     publicPrivate: String,
     indoorOutdoor: String,
+    hobbiesInterests: [String], // Moved from optional to required preferences
+    customHobbies: String, // Custom hobbies not in predefined list
     // Personal information (optional)
     sportsTeams: String,
     workDescription: String,
@@ -117,7 +120,6 @@ const DateSessionSchema = new mongoose.Schema({
     roleModels: String,
     travelExperience: String,
     musicPreferences: String,
-    hobbiesInterests: String,
     culturalBackground: String,
     personalInsight: String,
   },
@@ -485,20 +487,22 @@ async function generateSearchTerms(partnerA, partnerB) {
     - Loved Cuisines: ${partnerA.lovedCuisines?.join(', ') || 'None specified'}
     - Disliked Cuisines: ${partnerA.dislikedCuisines?.join(', ') || 'None specified'}
     - Desired Vibe: ${partnerA.vibe?.join(', ') || 'None specified'}
+    - Hobbies & Interests: ${[...(partnerA.hobbiesInterests || []), ...(partnerA.customHobbies ? partnerA.customHobbies.split(',').map(h => h.trim()).filter(h => h) : [])].join(', ') || 'None specified'}
     - Dealbreakers: ${partnerA.dealbreakers?.join(', ') || 'None specified'}
 
     **Partner B Preferences:**
     - Loved Cuisines: ${partnerB.lovedCuisines?.join(', ') || 'None specified'}
     - Disliked Cuisines: ${partnerB.dislikedCuisines?.join(', ') || 'None specified'}
     - Desired Vibe: ${partnerB.vibe?.join(', ') || 'None specified'}
+    - Hobbies & Interests: ${[...(partnerB.hobbiesInterests || []), ...(partnerB.customHobbies ? partnerB.customHobbies.split(',').map(h => h.trim()).filter(h => h) : [])].join(', ') || 'None specified'}
     - Dealbreakers: ${partnerB.dealbreakers?.join(', ') || 'None specified'}
 
     Return exactly 5 search terms that would find venues suitable for their date. Focus on:
     1. Food venues (if they want food)
-    2. Activity venues (based on their vibe preferences)
+    2. Activity venues (based on their vibe preferences and hobbies/interests)
     3. Drink venues (if they want drinks)
-    4. Entertainment venues
-    5. Unique venues that match their interests
+    4. Entertainment venues that align with their hobbies and interests
+    5. Unique venues that match their specific interests and activities
 
     **Output Format (JSON):**
     {
@@ -603,6 +607,12 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
     - Loved Cuisines: ${[...(partnerA.lovedCuisines || []), ...(partnerB.lovedCuisines || [])].join(', ') || 'None specified'}
     - Disliked Cuisines: ${[...(partnerA.dislikedCuisines || []), ...(partnerB.dislikedCuisines || [])].join(', ') || 'None specified'}
     - Desired Vibe: ${[...(partnerA.vibe || []), ...(partnerB.vibe || [])].join(', ') || 'None specified'}
+    - Shared Hobbies & Interests: ${[
+      ...(partnerA.hobbiesInterests || []), 
+      ...(partnerA.customHobbies ? partnerA.customHobbies.split(',').map(h => h.trim()).filter(h => h) : []),
+      ...(partnerB.hobbiesInterests || []), 
+      ...(partnerB.customHobbies ? partnerB.customHobbies.split(',').map(h => h.trim()).filter(h => h) : [])
+    ].join(', ') || 'None specified'}
     - Dealbreakers: ${[...(partnerA.dealbreakers || []), ...(partnerB.dealbreakers || [])].join(', ') || 'None specified'}
 
     **Available Venues:**
@@ -612,8 +622,9 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
     1. Create 3 distinct date ideas, each combining 2-3 specific venues from the list above
     2. Ensure each date respects their budget, preferences, and constraints
     3. Create a logical flow between venues (proximity, timing, etc.)
-    4. Make each date unique in vibe and experience
+    4. Make each date unique in vibe and experience, incorporating their shared hobbies and interests
     5. Use the EXACT venue names from the list above
+    6. Consider how their hobbies and interests can enhance each date experience
 
     **Output Format (JSON):**
     {
@@ -755,7 +766,7 @@ async function generateIcebreakerQuestions(partnerA, partnerB) {
     - Vibe Preferences: ${partnerA.vibe?.join(', ') || 'None specified'}
     - Sports Teams: ${partnerA.sportsTeams || 'None specified'}
     - Music Preferences: ${partnerA.musicPreferences || 'None specified'}
-    - Hobbies: ${partnerA.hobbiesInterests || 'None specified'}
+    - Hobbies & Interests: ${[...(partnerA.hobbiesInterests || []), ...(partnerA.customHobbies ? partnerA.customHobbies.split(',').map(h => h.trim()).filter(h => h) : [])].join(', ') || 'None specified'}
     - Cultural Background: ${partnerA.culturalBackground || 'None specified'}
     - Travel Experience: ${partnerA.travelExperience || 'None specified'}
     - Celebrity Fans: ${partnerA.celebrityFans || 'None specified'}
@@ -768,7 +779,7 @@ async function generateIcebreakerQuestions(partnerA, partnerB) {
     - Vibe Preferences: ${partnerB.vibe?.join(', ') || 'None specified'}
     - Sports Teams: ${partnerB.sportsTeams || 'None specified'}
     - Music Preferences: ${partnerB.musicPreferences || 'None specified'}
-    - Hobbies: ${partnerB.hobbiesInterests || 'None specified'}
+    - Hobbies & Interests: ${[...(partnerB.hobbiesInterests || []), ...(partnerB.customHobbies ? partnerB.customHobbies.split(',').map(h => h.trim()).filter(h => h) : [])].join(', ') || 'None specified'}
     - Cultural Background: ${partnerB.culturalBackground || 'None specified'}
     - Travel Experience: ${partnerB.travelExperience || 'None specified'}
     - Celebrity Fans: ${partnerB.celebrityFans || 'None specified'}
