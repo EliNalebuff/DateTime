@@ -82,13 +82,19 @@ export interface PartnerBData {
   personalInsight?: string;
 }
 
+export interface DateVenue {
+  name: string;
+  address: string;
+  role: string; // "dinner", "activity", "drinks", etc.
+}
+
 export interface DateOption {
   id: string;
   title: string;
   description: string;
-  location: string;
+  venues: DateVenue[];
   duration: string;
-  cost: string;
+  estimatedCost: string;
   vibe: string[];
   includesFood: boolean;
   includesDrinks: boolean;

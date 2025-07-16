@@ -23,6 +23,9 @@ const openai = new OpenAI({
   apiKey: apiKey,
 });
 
+// Add Google Places API client after OpenAI initialization
+const googlePlacesApiKey = process.env.GOOGLE_PLACES_API_KEY;
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -122,9 +125,13 @@ const DateSessionSchema = new mongoose.Schema({
     id: String,
     title: String,
     description: String,
-    location: String,
+    venues: [{
+      name: String,
+      address: String,
+      role: String // "dinner", "activity", "drinks", etc.
+    }],
     duration: String,
-    cost: String,
+    estimatedCost: String,
     vibe: [String],
     includesFood: Boolean,
     includesDrinks: Boolean,
@@ -286,7 +293,7 @@ const sendFinalDateSMS = async (phone, dateOption, selectedTimeRange) => {
   try {
     const timeInfo = selectedTimeRange ? `\nTime: ${selectedTimeRange}` : '';
     const message = await twilioClient.messages.create({
-      body: `🎉 Your date is confirmed!\n\n${dateOption.title}\n📍 ${dateOption.location}${timeInfo}\n💰 ${dateOption.cost}\n⏱️ ${dateOption.duration}\n\n${dateOption.description}\n\nTime to make some memories! 💕`,
+      body: `🎉 Your date is confirmed!\n\n${dateOption.title}\n📍 ${dateOption.location}\n💰 ${dateOption.cost}\n⏱️ ${dateOption.duration}\n\n${dateOption.description}\n\nTime to make some memories! 💕`,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: phone
     });
@@ -324,7 +331,7 @@ const sendPartnerAFinalChoiceSMS = async (phone, finalChoiceUrl) => {
     console.log('Twilio not configured. Would send Partner A final choice SMS:', phone, finalChoiceUrl);
     return { success: true, message: 'SMS sent (simulated)' };
   }
-  
+ 
   try {
     const message = await twilioClient.messages.create({
       body: `🎉 Great news! Your date partner has narrowed it down to 2 perfect options.\n\nNow it's time for you to choose which one sounds best!\n\n${finalChoiceUrl}\n\nClick the link to make your final choice! 💕`,
@@ -385,7 +392,7 @@ const scheduleIcebreakerGame = async (uuid) => {
         } catch (mongoError) {
           session = tempSessions.get(uuid);
         }
-        
+
         if (session && session.originatorPhone) {
           // Send SMS with game link
           await sendIcebreakerGameSMS(session.originatorPhone, data.gameId);
@@ -418,112 +425,315 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Real LLM function to generate date ideas
-async function generateDateIdeas(partnerA, partnerB) {
+// Helper function to map budget to Google Places price level
+function mapBudgetToPriceLevel(budget) {
+  if (budget <= 50) return 1; // $
+  if (budget <= 150) return 2; // $$
+  if (budget <= 300) return 3; // $$$
+  return 4; // $$$$
+}
+
+// Helper function to get location coordinates using Google Geocoding API
+async function getLocationCoordinates(location) {
+  if (!googlePlacesApiKey) {
+    console.warn('Google Places API key not configured, using default coordinates');
+    return { lat: 37.7749, lng: -122.4194 }; // Default to SF coordinates
+  }
+
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${googlePlacesApiKey}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Geocoding API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.status === 'OK' && data.results.length > 0) {
+      const { lat, lng } = data.results[0].geometry.location;
+      return { lat, lng };
+    } else {
+      console.warn(`Geocoding failed for "${location}": ${data.status}`);
+      return { lat: 37.7749, lng: -122.4194 }; // Default to SF coordinates
+    }
+  } catch (error) {
+    console.error('Error geocoding location:', error);
+    return { lat: 37.7749, lng: -122.4194 }; // Default to SF coordinates
+  }
+}
+
+// Step 1: Generate search terms based on survey preferences
+async function generateSearchTerms(partnerA, partnerB) {
   const prompt = `
-    You are a creative and insightful date planning assistant.
-    Your task is to generate 3 unique, specific, and exciting date ideas based on the shared preferences of two people.
-    Analyze their preferences carefully and create tailored suggestions.
+    You are a date planning expert. Based on the survey responses below, generate 5 specific search terms that would help find suitable venues for a date. 
+    
+    The search terms should be specific enough to find real venues (e.g., "Italian restaurants", "art museums", "bowling alleys", "coffee shops", "wine bars") 
+    rather than vague concepts. Consider their preferences for food, activities, vibe, and constraints.
 
-    Here are their preferences:
+    **Survey Preferences:**
+    - Location: ${partnerA.location}
+    - Date Duration: ${partnerA.dateDuration}
+    - Budget: $${partnerA.budget}
+    - Include Food: ${partnerA.includeFood ? 'Yes' : 'No'}
+    - Include Drinks: ${partnerA.includeDrinks ? 'Yes' : 'No'}
+    - Indoor/Outdoor: ${partnerA.indoorOutdoor} / ${partnerB.indoorOutdoor}
+    - Public/Private: ${partnerA.publicPrivate} / ${partnerB.publicPrivate}
+    
+    **Partner A Preferences:**
+    - Loved Cuisines: ${partnerA.lovedCuisines?.join(', ') || 'None specified'}
+    - Disliked Cuisines: ${partnerA.dislikedCuisines?.join(', ') || 'None specified'}
+    - Desired Vibe: ${partnerA.vibe?.join(', ') || 'None specified'}
+    - Dealbreakers: ${partnerA.dealbreakers?.join(', ') || 'None specified'}
 
-    **Shared Preferences:**
-    - Location for the date: ${partnerA.location}
-    - Proposed times by Partner A: ${partnerA.proposedTimeRanges && partnerA.proposedTimeRanges.length > 0 ? partnerA.proposedTimeRanges.map(t => t.displayText).join(', ') : 'None specified'}
-    - Times selected by Partner B: ${partnerB.selectedTimeRanges && partnerB.selectedTimeRanges.length > 0 ? partnerA.proposedTimeRanges.filter(t => partnerB.selectedTimeRanges.includes(t.id)).map(t => t.displayText).join(', ') : 'None specified'}
-    - Desired date duration: ${partnerA.dateDuration}
-    - Max travel distance: ${partnerA.travelDistance} miles
-    - Combined budget: $${partnerA.budget}
-    - Open to splitting costs: ${partnerA.splitCosts ? 'Yes' : 'No'}
-    - Should include food: ${partnerA.includeFood ? 'Yes' : 'No'}
-    - Should include drinks: ${partnerA.includeDrinks ? 'Yes' : 'No'}
-    - Public or private setting: ${partnerA.publicPrivate} or ${partnerB.publicPrivate}
-    - Indoor or outdoor setting: ${partnerA.indoorOutdoor} or ${partnerB.indoorOutdoor}
+    **Partner B Preferences:**
+    - Loved Cuisines: ${partnerB.lovedCuisines?.join(', ') || 'None specified'}
+    - Disliked Cuisines: ${partnerB.dislikedCuisines?.join(', ') || 'None specified'}
+    - Desired Vibe: ${partnerB.vibe?.join(', ') || 'None specified'}
+    - Dealbreakers: ${partnerB.dealbreakers?.join(', ') || 'None specified'}
 
-    **Partner A's Preferences:**
-    - Loved Cuisines: ${partnerA.lovedCuisines && partnerA.lovedCuisines.length > 0 ? partnerA.lovedCuisines.join(', ') : 'None specified'}
-    - Disliked Cuisines: ${partnerA.dislikedCuisines && partnerA.dislikedCuisines.length > 0 ? partnerA.dislikedCuisines.join(', ') : 'None specified'}
-    - Desired Vibe: ${partnerA.vibe && partnerA.vibe.length > 0 ? partnerA.vibe.join(', ') : 'None specified'}
-    - Dealbreakers: ${partnerA.dealbreakers && partnerA.dealbreakers.length > 0 ? partnerA.dealbreakers.join(', ') : 'None specified'}
-    - Dietary Restrictions: ${partnerA.dietaryRestrictions || 'None specified'}
+    Return exactly 5 search terms that would find venues suitable for their date. Focus on:
+    1. Food venues (if they want food)
+    2. Activity venues (based on their vibe preferences)
+    3. Drink venues (if they want drinks)
+    4. Entertainment venues
+    5. Unique venues that match their interests
 
-    **Partner B's Preferences:**
-    - Loved Cuisines: ${partnerB.lovedCuisines && partnerB.lovedCuisines.length > 0 ? partnerB.lovedCuisines.join(', ') : 'None specified'}
-    - Disliked Cuisines: ${partnerB.dislikedCuisines && partnerB.dislikedCuisines.length > 0 ? partnerB.dislikedCuisines.join(', ') : 'None specified'}
-    - Desired Vibe: ${partnerB.vibe && partnerB.vibe.length > 0 ? partnerB.vibe.join(', ') : 'None specified'}
-    - Dealbreakers: ${partnerB.dealbreakers && partnerB.dealbreakers.length > 0 ? partnerB.dealbreakers.join(', ') : 'None specified'}
-    - Dietary Restrictions: ${partnerB.dietaryRestrictions || 'None specified'}
-
-    **Instructions:**
-    1.  Generate 3 distinct date ideas.
-    2.  For each idea, provide a specific, real location (e.g., "Urban Plates" or "Green Lake Park" not "a pottery place" or "a park").
-    3.  The description should be compelling and highlight why it fits their preferences.
-    4.  Ensure the ideas respect ALL constraints, especially budget, dealbreakers, and dietary restrictions.
-    5.  Return the output as a valid JSON array of 3 objects. Do not include any text or formatting outside of the JSON array.
-
-    **Output Format (JSON Array):**
-    [
-      {
-        "id": "date1",
-        "title": "Creative Date Title",
-        "description": "A compelling description of the date (2-3 sentences).",
-        "location": "A specific, named location in or near ${partnerA.location}",
-        "duration": "e.g., 'Approx. 3 hours'",
-        "cost": "A price range, e.g., '$50-80'",
-        "vibe": ["An", "array", "of", "vibe", "keywords"],
-        "includesFood": true,
-        "includesDrinks": false,
-        "indoor": true,
-        "public": true
-      },
-      ... (two more objects)
-    ]
+    **Output Format (JSON):**
+    {
+      "searchTerms": [
+        "Italian restaurants",
+        "art museums",
+        "wine bars",
+        "bowling alleys", 
+        "coffee shops"
+      ]
+    }
   `;
 
   try {
-    console.log('Calling OpenAI API...');
+    console.log('Generating search terms...');
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       response_format: { type: "json_object" },
     });
-    console.log('OpenAI API response received');
 
     const content = response.choices[0].message.content;
-    console.log('Response content:', content.substring(0, 100) + '...');
+    const parsed = JSON.parse(content);
     
-    // The model is instructed to return a JSON object containing the array.
-    // Let's parse it and extract the array.
-    let jsonResponse;
-    try {
-      jsonResponse = JSON.parse(content);
-      console.log('JSON parsed successfully');
-    } catch (parseError) {
-      console.error('Error parsing JSON:', parseError);
-      throw new Error(`Failed to parse LLM response as JSON: ${parseError.message}`);
-    }
-    
-    // It's possible the model returns the array inside a key, e.g. { "date_ideas": [...] }
-    // We'll look for an array in the parsed object.
-    const ideas = Array.isArray(jsonResponse) ? jsonResponse : Object.values(jsonResponse).find(Array.isArray);
-
-    if (!ideas || ideas.length === 0) {
-      throw new Error("LLM returned no date ideas.");
-    }
-    
-    return ideas.slice(0, 3);
+    return parsed.searchTerms || [];
   } catch (error) {
-    console.error('Error generating date ideas from LLM:', error);
-    // Fallback to a single, safe idea if the LLM fails
+    console.error('Error generating search terms:', error);
+    // Fallback search terms
+    return ['restaurants', 'cafes', 'entertainment venues', 'museums', 'parks'];
+  }
+}
+
+// Step 2: Search Google Places API for venues
+async function searchGooglePlaces(searchTerm, location, radius, priceLevel) {
+  if (!googlePlacesApiKey) {
+    console.warn('Google Places API key not configured');
+    return [];
+  }
+
+  try {
+    // Get coordinates for the location (simplified - in production use Geocoding API)
+    const coords = await getLocationCoordinates(location);
+    
+    // Convert miles to meters (Google Places uses meters)
+    const radiusMeters = radius * 1609.34;
+
+    // Use Google Places Text Search API
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?` +
+      `query=${encodeURIComponent(searchTerm + ' near ' + location)}&` +
+      `location=${coords.lat},${coords.lng}&` +
+      `radius=${radiusMeters}&` +
+      `maxprice=${priceLevel}&` +
+      `key=${googlePlacesApiKey}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Google Places API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      throw new Error(`Google Places API error: ${data.status}`);
+    }
+
+    // Return top 20 results with relevant information
+    return (data.results || []).slice(0, 20).map(place => ({
+      name: place.name,
+      address: place.formatted_address,
+      rating: place.rating,
+      priceLevel: place.price_level,
+      types: place.types,
+      photos: place.photos,
+      placeId: place.place_id
+    }));
+
+  } catch (error) {
+    console.error(`Error searching Google Places for "${searchTerm}":`, error);
+    return [];
+  }
+}
+
+// Step 3: Generate final date ideas using venue data
+async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
+  const prompt = `
+    You are a creative date planning assistant. Using the real venue data provided below, create 3 unique and exciting date ideas that combine multiple venues.
+    Each date should include 2-3 venues to create a complete experience (e.g., dinner + activity, coffee + museum + walk).
+
+    **Survey Preferences:**
+    - Location: ${partnerA.location}
+    - Date Duration: ${partnerA.dateDuration}
+    - Max Travel Distance: ${partnerA.travelDistance} miles
+    - Budget: $${partnerA.budget}
+    - Include Food: ${partnerA.includeFood ? 'Yes' : 'No'}
+    - Include Drinks: ${partnerA.includeDrinks ? 'Yes' : 'No'}
+    - Indoor/Outdoor: ${partnerA.indoorOutdoor} / ${partnerB.indoorOutdoor}
+    - Public/Private: ${partnerA.publicPrivate} / ${partnerB.publicPrivate}
+
+    **Shared Preferences:**
+    - Loved Cuisines: ${[...(partnerA.lovedCuisines || []), ...(partnerB.lovedCuisines || [])].join(', ') || 'None specified'}
+    - Disliked Cuisines: ${[...(partnerA.dislikedCuisines || []), ...(partnerB.dislikedCuisines || [])].join(', ') || 'None specified'}
+    - Desired Vibe: ${[...(partnerA.vibe || []), ...(partnerB.vibe || [])].join(', ') || 'None specified'}
+    - Dealbreakers: ${[...(partnerA.dealbreakers || []), ...(partnerB.dealbreakers || [])].join(', ') || 'None specified'}
+
+    **Available Venues:**
+    ${allVenues.map(venue => `- ${venue.name} (${venue.address}) - Rating: ${venue.rating || 'N/A'}, Price: ${venue.priceLevel ? '$'.repeat(venue.priceLevel) : 'N/A'}, Types: ${venue.types?.slice(0, 3).join(', ') || 'N/A'}`).join('\n')}
+
+    **Instructions:**
+    1. Create 3 distinct date ideas, each combining 2-3 specific venues from the list above
+    2. Ensure each date respects their budget, preferences, and constraints
+    3. Create a logical flow between venues (proximity, timing, etc.)
+    4. Make each date unique in vibe and experience
+    5. Use the EXACT venue names from the list above
+
+    **Output Format (JSON):**
+    {
+      "dateIdeas": [
+        {
+          "id": "date1",
+          "title": "Creative Date Title",
+          "description": "A compelling description explaining the flow between venues and why it fits their preferences (2-3 sentences).",
+          "venues": [
+            {
+              "name": "Exact venue name from list",
+              "address": "Venue address",
+              "role": "dinner" // or "activity", "drinks", etc.
+            }
+          ],
+          "duration": "Approx. 3 hours",
+          "estimatedCost": "$80-120",
+          "vibe": ["romantic", "cultural"],
+          "includesFood": true,
+          "includesDrinks": false,
+          "indoor": true,
+          "public": true
+        }
+      ]
+    }
+  `;
+
+  try {
+    console.log('Generating final date ideas with venue data...');
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.8,
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0].message.content;
+    const parsed = JSON.parse(content);
+    
+    return parsed.dateIdeas || [];
+  } catch (error) {
+    console.error('Error generating final date ideas:', error);
+    // Fallback to simple date idea
     return [{
       id: 'fallback1',
-      title: 'Cozy Coffee & Park Stroll',
-      description: 'A relaxed date enjoying a walk in a local park and chatting over coffee at a nearby cafe.',
-      location: `A park near ${partnerA.location}`,
+      title: 'Local Exploration Date',
+      description: 'A relaxed date exploring local venues and enjoying good conversation.',
+      venues: [
+        {
+          name: `A local restaurant in ${partnerA.location}`,
+          address: partnerA.location,
+          role: 'dinner'
+        }
+      ],
       duration: 'Approx. 2 hours',
-      cost: '$20-40',
-      vibe: ['conversational', 'relaxed', 'casual'],
+      estimatedCost: '$40-80',
+      vibe: ['casual', 'conversational'],
+      includesFood: true,
+      includesDrinks: false,
+      indoor: true,
+      public: true
+    }];
+  }
+}
+
+// Main function: 3-step date idea generation process
+async function generateDateIdeas(partnerA, partnerB) {
+  try {
+    console.log('Starting 3-step date idea generation process...');
+    
+    // Step 1: Generate search terms
+    console.log('Step 1: Generating search terms...');
+    const searchTerms = await generateSearchTerms(partnerA, partnerB);
+    console.log('Generated search terms:', searchTerms);
+
+    // Step 2: Search Google Places for each term
+    console.log('Step 2: Searching Google Places...');
+    const priceLevel = mapBudgetToPriceLevel(partnerA.budget);
+    const radius = partnerA.travelDistance || 10; // miles
+    
+    const allVenues = [];
+    for (const searchTerm of searchTerms) {
+      console.log(`Searching for: ${searchTerm}`);
+      const venues = await searchGooglePlaces(searchTerm, partnerA.location, radius, priceLevel);
+      allVenues.push(...venues);
+    }
+    
+    console.log(`Found ${allVenues.length} total venues`);
+
+    // Remove duplicates based on name and address
+    const uniqueVenues = allVenues.filter((venue, index, self) => 
+      index === self.findIndex(v => v.name === venue.name && v.address === venue.address)
+    );
+    
+    console.log(`${uniqueVenues.length} unique venues after deduplication`);
+
+    // Step 3: Generate final date ideas using venue data
+    console.log('Step 3: Generating final date ideas...');
+    const dateIdeas = await generateFinalDateIdeas(partnerA, partnerB, uniqueVenues);
+    
+    console.log(`Generated ${dateIdeas.length} date ideas`);
+    return dateIdeas.slice(0, 3); // Ensure we return exactly 3 ideas
+
+  } catch (error) {
+    console.error('Error in 3-step date generation process:', error);
+    // Fallback to original simple approach
+    return [{
+      id: 'fallback1',
+      title: 'Cozy Coffee & Local Walk',
+      description: 'A relaxed date enjoying conversation over coffee and exploring the local area.',
+      venues: [
+        {
+          name: `A local cafe in ${partnerA.location}`,
+          address: partnerA.location,
+          role: 'coffee'
+        }
+      ],
+      duration: 'Approx. 2 hours',
+      estimatedCost: '$20-40',
+      vibe: ['conversational', 'relaxed'],
       includesFood: false,
       includesDrinks: true,
       indoor: false,

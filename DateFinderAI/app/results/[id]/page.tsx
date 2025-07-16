@@ -450,7 +450,10 @@ function FinalizedSelection({
           </Button>
           <Button
             variant="primary"
-            onClick={() => window.location.href = `https://www.google.com/search?q=${encodeURIComponent(selectedDate.location)}`}
+            onClick={() => {
+              const searchQuery = selectedDate.venues.map(venue => venue.name).join(' + ');
+              window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+            }}
             className="w-full md:w-auto"
           >
             Find Location Details

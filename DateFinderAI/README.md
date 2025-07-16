@@ -66,6 +66,8 @@ Before running this project, make sure you have:
    NEXTAUTH_SECRET=your-secret-key-here
    PORT=5000
    NODE_ENV=development
+   OPENAI_API_KEY=your-openai-api-key-here
+   GOOGLE_PLACES_API_KEY=your-google-places-api-key-here
    ```
 
 4. **Start MongoDB**

@@ -10,17 +10,7 @@ const nextConfig = {
     MONGODB_URI: process.env.MONGODB_URI,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   },
-  async rewrites() {
-    // Always use Railway backend
-    const apiBaseUrl = 'https://datetime-production.up.railway.app';
-      
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiBaseUrl}/api/:path*`,
-      },
-    ]
-  },
+
 }
 
 module.exports = nextConfig 

@@ -56,18 +56,25 @@ const DateCard: React.FC<DateCardProps> = ({
         </div>
 
         <div className="space-y-2">
+          {/* Display venues */}
+          <div className="space-y-1">
+            {date.venues.map((venue, index) => (
+              <div key={index} className="flex items-center space-x-2 text-sm text-gray-600">
+                <MapPin className="h-3 w-3 text-gray-400" />
+                <span className="font-medium text-gray-700">{venue.name}</span>
+                <span className="text-xs text-gray-500">({venue.role})</span>
+              </div>
+            ))}
+          </div>
+          
           <div className="flex items-center space-x-4 text-sm text-gray-500">
-            <div className="flex items-center space-x-1">
-              <MapPin className="h-4 w-4" />
-              <span>{date.location}</span>
-            </div>
             <div className="flex items-center space-x-1">
               <Clock className="h-4 w-4" />
               <span>{date.duration}</span>
             </div>
             <div className="flex items-center space-x-1">
               <DollarSign className="h-4 w-4" />
-              <span>{date.cost}</span>
+              <span>{date.estimatedCost}</span>
             </div>
           </div>
 
