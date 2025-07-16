@@ -29,7 +29,9 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
   };
 
   const formatDisplayText = (date: string, time: string): string => {
-    const dateObj = new Date(date);
+    // Parse the date as local date to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day); // month is 0-indexed
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
     const monthDay = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
     
