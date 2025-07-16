@@ -88,6 +88,11 @@ export interface DateVenue {
   name: string;
   address: string;
   role: string; // "dinner", "activity", "drinks", etc.
+  phoneNumber?: string;
+  website?: string;
+  mapsUrl?: string;
+  estimatedCostForThis?: string;
+  distanceFromPrevious?: string;
 }
 
 export interface DateOption {

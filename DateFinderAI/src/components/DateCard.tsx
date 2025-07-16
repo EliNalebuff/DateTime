@@ -3,7 +3,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { DateCardProps } from '@/types';
-import { Clock, MapPin, DollarSign, Heart } from 'lucide-react';
+import { Clock, MapPin, DollarSign, Heart, Phone, Globe, ExternalLink } from 'lucide-react';
 
 const DateCard: React.FC<DateCardProps> = ({
   date,
@@ -57,12 +57,63 @@ const DateCard: React.FC<DateCardProps> = ({
 
         <div className="space-y-2">
           {/* Display venues */}
-          <div className="space-y-1">
+          <div className="space-y-3">
             {date.venues.map((venue, index) => (
-              <div key={index} className="flex items-center space-x-2 text-sm text-gray-600">
-                <MapPin className="h-3 w-3 text-gray-400" />
-                <span className="font-medium text-gray-700">{venue.name}</span>
-                <span className="text-xs text-gray-500">({venue.role})</span>
+              <div key={index} className="border-l-2 border-primary-200 pl-3 py-1">
+                <div className="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+                  <MapPin className="h-3 w-3 text-gray-400" />
+                  <span className="font-medium text-gray-700">{venue.name}</span>
+                  <span className="text-xs text-gray-500">({venue.role})</span>
+                  {venue.estimatedCostForThis && (
+                    <span className="text-xs text-primary-600 font-medium">
+                      {venue.estimatedCostForThis}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Contact Information */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {venue.phoneNumber && (
+                    <a 
+                      href={`tel:${venue.phoneNumber}`}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Phone className="h-3 w-3" />
+                      <span>{venue.phoneNumber}</span>
+                    </a>
+                  )}
+                  {venue.website && (
+                    <a 
+                      href={venue.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-1 text-green-600 hover:text-green-800"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Globe className="h-3 w-3" />
+                      <span>Website</span>
+                    </a>
+                  )}
+                  {venue.mapsUrl && (
+                    <a 
+                      href={venue.mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-1 text-red-600 hover:text-red-800"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      <span>Maps</span>
+                    </a>
+                  )}
+                </div>
+                
+                {venue.distanceFromPrevious && index > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    📍 {venue.distanceFromPrevious} from previous stop
+                  </div>
+                )}
               </div>
             ))}
           </div>

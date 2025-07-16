@@ -25,6 +25,7 @@ const openai = new OpenAI({
 
 // Add Google Places API client after OpenAI initialization
 const googlePlacesApiKey = process.env.GOOGLE_PLACES_API_KEY;
+console.log('Google Places API configured:', !!googlePlacesApiKey);
 
 // Middleware
 app.use(cors());
@@ -130,7 +131,12 @@ const DateSessionSchema = new mongoose.Schema({
     venues: [{
       name: String,
       address: String,
-      role: String // "dinner", "activity", "drinks", etc.
+      role: String, // "dinner", "activity", "drinks", etc.
+      phoneNumber: String,
+      website: String,
+      mapsUrl: String,
+      estimatedCostForThis: String,
+      distanceFromPrevious: String
     }],
     duration: String,
     estimatedCost: String,
@@ -578,7 +584,10 @@ async function searchGooglePlaces(searchTerm, location, radius, priceLevel) {
       priceLevel: place.price_level,
       types: place.types,
       photos: place.photos,
-      placeId: place.place_id
+      placeId: place.place_id,
+      businessStatus: place.business_status,
+      openingHours: place.opening_hours,
+      geometry: place.geometry
     }));
 
   } catch (error) {
@@ -615,16 +624,40 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
     ].join(', ') || 'None specified'}
     - Dealbreakers: ${[...(partnerA.dealbreakers || []), ...(partnerB.dealbreakers || [])].join(', ') || 'None specified'}
 
-    **Available Venues:**
-    ${allVenues.map(venue => `- ${venue.name} (${venue.address}) - Rating: ${venue.rating || 'N/A'}, Price: ${venue.priceLevel ? '$'.repeat(venue.priceLevel) : 'N/A'}, Types: ${venue.types?.slice(0, 3).join(', ') || 'N/A'}`).join('\n')}
+    **Available Venues (Top 10 Selected):**
+    ${allVenues.map(venue => {
+      const status = venue.businessStatus === 'OPERATIONAL' ? 'Open' : venue.businessStatus || 'Unknown';
+      const openNow = venue.openingHours?.open_now ? 'Currently Open' : venue.openingHours?.open_now === false ? 'Currently Closed' : 'Hours Unknown';
+      const location = venue.geometry?.location ? `(${venue.geometry.location.lat.toFixed(4)}, ${venue.geometry.location.lng.toFixed(4)})` : '';
+      const contact = [
+        venue.phoneNumber ? `Phone: ${venue.phoneNumber}` : null,
+        venue.website ? `Website: ${venue.website}` : null,
+        venue.mapsUrl ? `Maps: ${venue.mapsUrl}` : null
+      ].filter(Boolean).join(', ');
+      
+      const reviewSummary = venue.reviews && venue.reviews.length > 0 
+        ? `Recent Reviews: ${venue.reviews.slice(0, 2).map(review => `"${review.text.substring(0, 100)}..." (${review.rating}/5)`).join(' | ')}`
+        : 'No recent reviews available';
+      
+      return `- ${venue.name} (${venue.address}) ${location}
+  Rating: ${venue.rating || 'N/A'}, Price: ${venue.priceLevel ? '$'.repeat(venue.priceLevel) : 'N/A'}, Status: ${status}, ${openNow}
+  Types: ${venue.types?.slice(0, 3).join(', ') || 'N/A'}
+  Contact: ${contact || 'Contact info not available'}
+  ${reviewSummary}`;
+    }).join('\n\n')}
 
     **Instructions:**
     1. Create 3 distinct date ideas, each combining 2-3 specific venues from the list above
     2. Ensure each date respects their budget, preferences, and constraints
-    3. Create a logical flow between venues (proximity, timing, etc.)
-    4. Make each date unique in vibe and experience, incorporating their shared hobbies and interests
-    5. Use the EXACT venue names from the list above
-    6. Consider how their hobbies and interests can enhance each date experience
+    3. **CRITICAL**: Calculate and consider travel distance between venues - keep venues within reasonable proximity (prefer venues within 2-3 miles of each other)
+    4. **Review Analysis**: Consider the reviews provided - prioritize venues with positive recent feedback and avoid those with concerning reviews
+    5. Create a logical flow between venues (proximity, timing, etc.)
+    6. Make each date unique in vibe and experience, incorporating their shared hobbies and interests
+    7. Use the EXACT venue names from the list above
+    8. Consider how their hobbies and interests can enhance each date experience
+    9. Prioritize venues that are currently operational and open when possible
+    10. **Cost Consideration**: If combining multiple venues, ensure total estimated cost stays within their budget
+    11. Include contact information for reservation purposes
 
     **Output Format (JSON):**
     {
@@ -637,7 +670,12 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
             {
               "name": "Exact venue name from list",
               "address": "Venue address",
-              "role": "dinner" // or "activity", "drinks", etc.
+              "role": "dinner", // or "activity", "drinks", etc.
+              "phoneNumber": "Phone number if available",
+              "website": "Website URL if available", 
+              "mapsUrl": "Google Maps URL if available",
+              "estimatedCostForThis": "$20-40",
+              "distanceFromPrevious": "0.8 miles" // distance from previous venue in this date
             }
           ],
           "duration": "Approx. 3 hours",
@@ -690,10 +728,170 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
   }
 }
 
-// Main function: 3-step date idea generation process
+// Step 4: Get detailed venue information using Google Places Details API
+async function getVenueDetails(venues) {
+  if (!googlePlacesApiKey) {
+    console.warn('Google Places API key not configured for details');
+    return venues; // Return venues without additional details
+  }
+
+  const detailedVenues = [];
+  
+  for (const venue of venues) {
+    if (!venue.placeId) {
+      console.warn(`No place ID for venue: ${venue.name}`);
+      detailedVenues.push(venue);
+      continue;
+    }
+
+    try {
+      console.log(`Getting details for: ${venue.name}`);
+      
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?` +
+        `place_id=${venue.placeId}&` +
+        `fields=name,formatted_phone_number,website,url,reviews,opening_hours&` +
+        `key=${googlePlacesApiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Google Places Details API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status !== 'OK') {
+        console.warn(`Places Details API warning for ${venue.name}: ${data.status}`);
+        detailedVenues.push(venue);
+        continue;
+      }
+
+      const details = data.result;
+      
+      // Enhanced venue with additional details
+      const enhancedVenue = {
+        ...venue,
+        phoneNumber: details.formatted_phone_number || null,
+        website: details.website || null,
+        mapsUrl: details.url || null, // Google Maps URL
+        reviews: details.reviews ? details.reviews.slice(0, 5) : [], // Top 5 reviews
+        detailedOpeningHours: details.opening_hours || null
+      };
+
+      detailedVenues.push(enhancedVenue);
+      
+      // Add small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+    } catch (error) {
+      console.error(`Error getting details for ${venue.name}:`, error);
+      // Add venue without additional details if API fails
+      detailedVenues.push(venue);
+    }
+  }
+
+  console.log(`Enhanced ${detailedVenues.length} venues with detailed information`);
+  return detailedVenues;
+}
+
+// Step 3: Filter venues to top 10 using LLM
+async function filterTopVenues(partnerA, partnerB, allVenues) {
+  const prompt = `
+    You are a venue selection expert. From the list of venues below, select the 10 BEST venues for a date based on the couple's preferences and constraints.
+
+    **Survey Preferences:**
+    - Location: ${partnerA.location}
+    - Date Duration: ${partnerA.dateDuration}
+    - Max Travel Distance: ${partnerA.travelDistance} miles
+    - Budget: $${partnerA.budget}
+    - Include Food: ${partnerA.includeFood ? 'Yes' : 'No'}
+    - Include Drinks: ${partnerA.includeDrinks ? 'Yes' : 'No'}
+    - Indoor/Outdoor: ${partnerA.indoorOutdoor} / ${partnerB.indoorOutdoor}
+    - Public/Private: ${partnerA.publicPrivate} / ${partnerB.publicPrivate}
+
+    **Shared Hobbies & Interests:**
+    ${[
+      ...(partnerA.hobbiesInterests || []), 
+      ...(partnerA.customHobbies ? partnerA.customHobbies.split(',').map(h => h.trim()).filter(h => h) : []),
+      ...(partnerB.hobbiesInterests || []), 
+      ...(partnerB.customHobbies ? partnerB.customHobbies.split(',').map(h => h.trim()).filter(h => h) : [])
+    ].join(', ') || 'None specified'}
+
+    **Available Venues (${allVenues.length} total):**
+    ${allVenues.map((venue, index) => {
+      const status = venue.businessStatus === 'OPERATIONAL' ? 'Open' : venue.businessStatus || 'Unknown';
+      const openNow = venue.openingHours?.open_now ? 'Currently Open' : venue.openingHours?.open_now === false ? 'Currently Closed' : 'Hours Unknown';
+      const location = venue.geometry?.location ? `(${venue.geometry.location.lat.toFixed(4)}, ${venue.geometry.location.lng.toFixed(4)})` : '';
+      
+      return `${index + 1}. ${venue.name} (${venue.address}) ${location} - Rating: ${venue.rating || 'N/A'}, Price: ${venue.priceLevel ? '$'.repeat(venue.priceLevel) : 'N/A'}, Status: ${status}, ${openNow}, Types: ${venue.types?.slice(0, 3).join(', ') || 'N/A'}`;
+    }).join('\n')}
+
+    **Selection Criteria (in order of importance):**
+    1. **Travel Distance**: Prioritize venues within their specified travel distance
+    2. **Ratings**: Higher rated venues (4.0+ preferred)
+    3. **Hobby Alignment**: Venues that match their shared hobbies and interests
+    4. **Budget Compatibility**: Venues within their price range
+    5. **Date Duration**: Venues suitable for their planned date length
+    6. **Operational Status**: Currently open and operational venues
+    7. **Preference Match**: Indoor/outdoor and public/private preferences
+    8. **Variety**: Mix of food, activity, and entertainment venues for diverse date options
+
+    **Instructions:**
+    - Select exactly 10 venues from the list above
+    - Use the venue numbers (1, 2, 3, etc.) to identify your selections
+    - Prioritize based on the criteria above
+    - Ensure variety for creating different types of date experiences
+    - Include brief reasoning for each selection
+
+    **Output Format (JSON):**
+    {
+      "selectedVenues": [
+        {
+          "venueNumber": 1,
+          "reason": "High rating (4.5), matches photography hobby, within budget"
+        },
+        {
+          "venueNumber": 5,
+          "reason": "Perfect for food lovers, excellent reviews, close to location"
+        }
+      ]
+    }
+  `;
+
+  try {
+    console.log(`Filtering ${allVenues.length} venues down to top 10...`);
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0].message.content;
+    const parsed = JSON.parse(content);
+    
+    const selectedVenues = parsed.selectedVenues || [];
+    const topVenues = selectedVenues
+      .map(selection => allVenues[selection.venueNumber - 1])
+      .filter(venue => venue) // Remove any undefined venues
+      .slice(0, 10); // Ensure exactly 10 venues
+
+    console.log(`Selected ${topVenues.length} top venues`);
+    return topVenues;
+  } catch (error) {
+    console.error('Error filtering venues:', error);
+    // Fallback: return top 10 by rating
+    return allVenues
+      .filter(venue => venue.rating)
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, 10);
+  }
+}
+
+// Main function: Enhanced 5-step date idea generation process
 async function generateDateIdeas(partnerA, partnerB) {
   try {
-    console.log('Starting 3-step date idea generation process...');
+    console.log('Starting enhanced 5-step date idea generation process...');
     
     // Step 1: Generate search terms
     console.log('Step 1: Generating search terms...');
@@ -721,9 +919,21 @@ async function generateDateIdeas(partnerA, partnerB) {
     
     console.log(`${uniqueVenues.length} unique venues after deduplication`);
 
-    // Step 3: Generate final date ideas using venue data
-    console.log('Step 3: Generating final date ideas...');
-    const dateIdeas = await generateFinalDateIdeas(partnerA, partnerB, uniqueVenues);
+    // Step 3: Filter to top 10 venues using LLM
+    console.log('Step 3: Filtering to top 10 venues...');
+    const topVenues = await filterTopVenues(partnerA, partnerB, uniqueVenues);
+    
+    console.log(`Filtered to ${topVenues.length} top venues`);
+
+    // Step 4: Get detailed information for top venues
+    console.log('Step 4: Getting detailed venue information...');
+    const detailedVenues = await getVenueDetails(topVenues);
+    
+    console.log(`Retrieved details for ${detailedVenues.length} venues`);
+
+    // Step 5: Generate final date ideas using detailed venue data
+    console.log('Step 5: Generating final date ideas with detailed data...');
+    const dateIdeas = await generateFinalDateIdeas(partnerA, partnerB, detailedVenues);
     
     console.log(`Generated ${dateIdeas.length} date ideas`);
     return dateIdeas.slice(0, 3); // Ensure we return exactly 3 ideas
