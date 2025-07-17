@@ -42,7 +42,7 @@ export default function WelcomePage() {
                 </div>
                 <div>
                   <h1 className="text-lg font-semibold text-gray-900">DateFinder AI</h1>
-                  <p className="text-sm text-gray-700">Welcome back, {user?.name || user?.phone}</p>
+                  <p className="text-sm text-gray-700">Welcome back, {user?.name || user?.email}</p>
                 </div>
               </div>
               <button
