@@ -110,7 +110,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
@@ -288,7 +288,7 @@ export default function LoginPage() {
               className="w-full"
             >
               {isLoading ? <LoadingSpinner size="sm" /> : 
-                authMethod === 'sms' ? 'Send Code' : 'Sign In'}
+                authMethod === 'email' ? 'Send Code' : 'Sign In'}
             </Button>
 
             <div className="text-center">
