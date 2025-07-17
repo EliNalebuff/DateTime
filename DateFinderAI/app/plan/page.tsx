@@ -366,14 +366,6 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
     updateFormData('email', e.target.value);
   };
 
-  // Helper function to determine if a field should be highlighted as required
-  const getInputClassName = (value: any, required: boolean = false) => {
-    if (required && (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'string' && value.trim() === ''))) {
-      return 'form-input-required';
-    }
-    return 'form-input';
-  };
-
   return (
     <div className="space-y-6">
       <QuestionCard 
@@ -386,7 +378,7 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
           value={formData.email}
           onChange={handleEmailChange}
           placeholder="you@example.com"
-          className={getInputClassName(formData.email, true)}
+          className="form-input"
         />
         <p className="text-xs text-gray-500 mt-1">
           We'll send you updates about your date plans
@@ -403,8 +395,6 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
           onChange={(value) => updateFormData('location', value)}
           placeholder="Enter city, neighborhood, or address..."
           useLocationButton
-          required={true}
-          isEmpty={!formData.location?.trim()}
         />
       </QuestionCard>
 

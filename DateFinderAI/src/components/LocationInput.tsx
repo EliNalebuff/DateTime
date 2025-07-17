@@ -10,8 +10,6 @@ const LocationInput: React.FC<LocationInputProps> = ({
   onChange,
   placeholder = 'Enter city, neighborhood, or address...',
   useLocationButton = true,
-  required = false,
-  isEmpty = false,
 }) => {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -163,7 +161,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
           onFocus={() => setShowSuggestions(true)}
           onBlur={handleInputBlur}
           placeholder={placeholder}
-          className={`${required && isEmpty ? 'form-input-required' : 'form-input'} pr-12`}
+          className="form-input pr-12"
         />
         {useLocationButton && (
           <button

@@ -216,8 +216,6 @@ export interface LocationInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   useLocationButton?: boolean;
-  required?: boolean;
-  isEmpty?: boolean;
 }
 
 export interface ProgressBarProps {
