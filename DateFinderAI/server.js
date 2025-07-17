@@ -745,11 +745,26 @@ async function searchGooglePlaces(searchTerm, location, radius, priceLevel) {
   }
 }
 
-// Step 3: Generate final date ideas using venue data
+// Step 5: Generate final date ideas using venue data
 async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
+  // Find the selected time range details
+  const selectedTimeRange = partnerA.proposedTimeRanges?.find(range => range.id === partnerB.selectedTimeRange);
+  
+  // Parse the selected date to get day of week for opening hours checking
+  const selectedDate = selectedTimeRange ? new Date(selectedTimeRange.date) : null;
+  const dayOfWeek = selectedDate ? selectedDate.toLocaleDateString('en-US', { weekday: 'long' }) : 'Unknown';
+  const selectedTime = selectedTimeRange ? `${selectedTimeRange.startTime} to ${selectedTimeRange.endTime}` : 'Unknown';
+  
   const prompt = `
     You are a creative date planning assistant. Using the real venue data provided below, create 3 unique and exciting date ideas that combine multiple venues.
     Each date should include 2-3 venues to create a complete experience (e.g., dinner + activity, coffee + museum + walk).
+
+    **CRITICAL DATE & TIME REQUIREMENTS:**
+    - Selected Date: ${selectedTimeRange?.displayText || 'Time not selected'}
+    - Day of Week: ${dayOfWeek}
+    - Time Range: ${selectedTime}
+    - **MUST verify all selected venues will be OPEN during this specific time on ${dayOfWeek}**
+    - **DO NOT include venues that will be closed during the selected time period**
 
     **Survey Preferences:**
     - Location: ${partnerA.location}
@@ -773,7 +788,7 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
     ].join(', ') || 'None specified'}
     - Dealbreakers: ${[...(partnerA.dealbreakers || []), ...(partnerB.dealbreakers || [])].join(', ') || 'None specified'}
 
-    **Available Venues (Top 10 Selected):**
+    **Available Venues (Top 15 Selected):**
     ${allVenues.map(venue => {
       const status = venue.businessStatus === 'OPERATIONAL' ? 'Open' : venue.businessStatus || 'Unknown';
       const openNow = venue.openingHours?.open_now ? 'Currently Open' : venue.openingHours?.open_now === false ? 'Currently Closed' : 'Hours Unknown';
@@ -788,25 +803,33 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
         ? `Recent Reviews: ${venue.reviews.slice(0, 2).map(review => `"${review.text.substring(0, 100)}..." (${review.rating}/5)`).join(' | ')}`
         : 'No recent reviews available';
       
+      // Include opening hours from weekday_text for date/time verification
+      const openingHours = venue.detailedOpeningHours?.weekday_text 
+        ? `Opening Hours: ${venue.detailedOpeningHours.weekday_text.join(' | ')}`
+        : 'Opening Hours: Not available';
+      
       return `- ${venue.name} (${venue.address}) ${location}
   Rating: ${venue.rating || 'N/A'}, Price: ${venue.priceLevel ? '$'.repeat(venue.priceLevel) : 'N/A'}, Status: ${status}, ${openNow}
   Types: ${venue.types?.slice(0, 3).join(', ') || 'N/A'}
   Contact: ${contact || 'Contact info not available'}
+  ${openingHours}
   ${reviewSummary}`;
     }).join('\n\n')}
 
     **Instructions:**
-    1. Create 3 distinct date ideas, each combining 2-3 specific venues from the list above
-    2. Ensure each date respects their budget, preferences, and constraints
-    3. **CRITICAL**: Calculate and consider travel distance between venues - keep venues within reasonable proximity (prefer venues within 2-3 miles of each other)
-    4. **Review Analysis**: Consider the reviews provided - prioritize venues with positive recent feedback and avoid those with concerning reviews
-    5. Create a logical flow between venues (proximity, timing, etc.)
-    6. Make each date unique in vibe and experience, incorporating their shared hobbies and interests
-    7. Use the EXACT venue names from the list above
-    8. Consider how their hobbies and interests can enhance each date experience
-    9. Prioritize venues that are currently operational and open when possible
-    10. **Cost Consideration**: If combining multiple venues, ensure total estimated cost stays within their budget
-    11. Include contact information for reservation purposes
+    1. **OPENING HOURS VERIFICATION (TOP PRIORITY)**: Before selecting ANY venue, check its opening hours against the selected date/time (${dayOfWeek} ${selectedTime}). ONLY include venues that will be open during this time period.
+    2. Create 3 distinct date ideas, each combining 2-3 specific venues from the list above
+    3. Ensure each date respects their budget, preferences, and constraints
+    4. **CRITICAL**: Calculate and consider travel distance between venues - keep venues within reasonable proximity (prefer venues within 2-3 miles of each other)
+    5. **Review Analysis**: Consider the reviews provided - prioritize venues with positive recent feedback and avoid those with concerning reviews
+    6. Create a logical flow between venues (proximity, timing, etc.)
+    7. Make each date unique in vibe and experience, incorporating their shared hobbies and interests
+    8. Use the EXACT venue names from the list above
+    9. Consider how their hobbies and interests can enhance each date experience
+    10. Prioritize venues that are currently operational and open when possible
+    11. **Cost Consideration**: If combining multiple venues, ensure total estimated cost stays within their budget
+    12. Include contact information for reservation purposes
+    13. **DOUBLE-CHECK**: Verify each selected venue's opening hours one more time before finalizing the date idea
 
     **Output Format (JSON):**
     {
@@ -943,10 +966,10 @@ async function getVenueDetails(venues) {
   return detailedVenues;
 }
 
-// Step 3: Filter venues to top 10 using LLM
+// Step 3: Filter venues to top 15 using LLM
 async function filterTopVenues(partnerA, partnerB, allVenues) {
   const prompt = `
-    You are a venue selection expert. From the list of venues below, select the 10 BEST venues for a date based on the couple's preferences and constraints.
+    You are a venue selection expert. From the list of venues below, select the 15 BEST venues for a date based on the couple's preferences and constraints.
 
     **Survey Preferences:**
     - Location: ${partnerA.location}
@@ -986,7 +1009,7 @@ async function filterTopVenues(partnerA, partnerB, allVenues) {
     8. **Variety**: Mix of food, activity, and entertainment venues for diverse date options
 
     **Instructions:**
-    - Select exactly 10 venues from the list above
+    - Select exactly 15 venues from the list above
     - Use the venue numbers (1, 2, 3, etc.) to identify your selections
     - Prioritize based on the criteria above
     - Ensure variety for creating different types of date experiences
@@ -1008,7 +1031,7 @@ async function filterTopVenues(partnerA, partnerB, allVenues) {
   `;
 
   try {
-    console.log(`Filtering ${allVenues.length} venues down to top 10...`);
+    console.log(`Filtering ${allVenues.length} venues down to top 15...`);
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
@@ -1023,17 +1046,17 @@ async function filterTopVenues(partnerA, partnerB, allVenues) {
     const topVenues = selectedVenues
       .map(selection => allVenues[selection.venueNumber - 1])
       .filter(venue => venue) // Remove any undefined venues
-      .slice(0, 10); // Ensure exactly 10 venues
+      .slice(0, 15); // Ensure exactly 15 venues
 
     console.log(`Selected ${topVenues.length} top venues`);
     return topVenues;
   } catch (error) {
     console.error('Error filtering venues:', error);
-    // Fallback: return top 10 by rating
+    // Fallback: return top 15 by rating
     return allVenues
       .filter(venue => venue.rating)
       .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-      .slice(0, 10);
+      .slice(0, 15);
   }
 }
 
@@ -1068,8 +1091,8 @@ async function generateDateIdeas(partnerA, partnerB) {
     
     console.log(`${uniqueVenues.length} unique venues after deduplication`);
 
-    // Step 3: Filter to top 10 venues using LLM
-    console.log('Step 3: Filtering to top 10 venues...');
+    // Step 3: Filter to top 15 venues using LLM
+    console.log('Step 3: Filtering to top 15 venues...');
     const topVenues = await filterTopVenues(partnerA, partnerB, uniqueVenues);
     
     console.log(`Filtered to ${topVenues.length} top venues`);
@@ -1080,8 +1103,8 @@ async function generateDateIdeas(partnerA, partnerB) {
     
     console.log(`Retrieved details for ${detailedVenues.length} venues`);
 
-    // Step 5: Generate final date ideas using detailed venue data
-    console.log('Step 5: Generating final date ideas with detailed data...');
+    // Step 5: Generate final date ideas using detailed venue data with opening hours verification
+    console.log('Step 5: Generating final date ideas with detailed data and opening hours verification...');
     const dateIdeas = await generateFinalDateIdeas(partnerA, partnerB, detailedVenues);
     
     console.log(`Generated ${dateIdeas.length} date ideas`);

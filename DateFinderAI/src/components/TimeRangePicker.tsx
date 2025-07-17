@@ -191,15 +191,23 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
               className="form-input"
             >
               <option value="">Select a date</option>
-              {nextWeekDates.map((date) => (
-                <option key={date.toISOString()} value={date.toISOString().split('T')[0]}>
-                  {date.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </option>
-              ))}
+              {nextWeekDates.map((date) => {
+                // Format date as YYYY-MM-DD using local timezone to avoid UTC conversion issues
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const localDateString = `${year}-${month}-${day}`;
+                
+                return (
+                  <option key={localDateString} value={localDateString}>
+                    {date.toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
