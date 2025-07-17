@@ -33,7 +33,7 @@ export default function PartnerBPage() {
   const [proposedTimeRanges, setProposedTimeRanges] = useState<TimeRange[]>([]);
   const [formData, setFormData] = useState<PartnerBData>({
     email: '',
-    selectedTimeRanges: [],
+    selectedTimeRange: '',
     ageRange: '',
     budget: 100,
     splitCosts: true,
@@ -167,7 +167,7 @@ export default function PartnerBPage() {
   const isStepValid = (step: number) => {
     switch (step) {
       case 1:
-        return formData.email && formData.selectedTimeRanges.length > 0 && formData.ageRange;
+        return formData.email && formData.selectedTimeRange && formData.ageRange;
       case 2:
         return formData.budget > 0;
       case 3:
@@ -542,8 +542,8 @@ function Step1TimeBasics({
       <QuestionCard question="Which of these times work for you?">
         <TimeRangeSelector
           proposedTimeRanges={proposedTimeRanges}
-          selectedTimeRanges={formData.selectedTimeRanges}
-          onChange={(selectedIds) => updateFormData('selectedTimeRanges', selectedIds)}
+          selectedTimeRange={formData.selectedTimeRange}
+          onChange={(selectedId) => updateFormData('selectedTimeRange', selectedId)}
         />
       </QuestionCard>
 

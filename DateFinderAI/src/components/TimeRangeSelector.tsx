@@ -6,21 +6,17 @@ import { TimeRange } from '@/types';
 
 interface TimeRangeSelectorProps {
   proposedTimeRanges: TimeRange[];
-  selectedTimeRanges: string[];
-  onChange: (selectedIds: string[]) => void;
+  selectedTimeRange: string;
+  onChange: (selectedId: string) => void;
 }
 
 const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
   proposedTimeRanges,
-  selectedTimeRanges,
+  selectedTimeRange,
   onChange,
 }) => {
-  const handleToggle = (rangeId: string) => {
-    if (selectedTimeRanges.includes(rangeId)) {
-      onChange(selectedTimeRanges.filter(id => id !== rangeId));
-    } else {
-      onChange([...selectedTimeRanges, rangeId]);
-    }
+  const handleSelect = (rangeId: string) => {
+    onChange(rangeId);
   };
 
   if (proposedTimeRanges.length === 0) {
@@ -34,17 +30,17 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
   return (
     <div className="space-y-3">
       <p className="text-sm text-gray-600">
-        Select the time ranges that work for you:
+        Select the time that works best for you:
       </p>
       <div className="space-y-2">
         {proposedTimeRanges.map((range) => {
-          const isSelected = selectedTimeRanges.includes(range.id);
+          const isSelected = selectedTimeRange === range.id;
           
           return (
             <button
               key={range.id}
               type="button"
-              onClick={() => handleToggle(range.id)}
+              onClick={() => handleSelect(range.id)}
               className={cn(
                 'w-full p-4 rounded-lg border-2 text-left transition-all duration-200',
                 {
@@ -56,14 +52,14 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
               <div className="flex items-center justify-between">
                 <span className="font-medium">{range.displayText}</span>
                 <div className={cn(
-                  'w-5 h-5 rounded-full border-2 transition-all duration-200',
+                  'w-5 h-5 rounded-full border-2 transition-all duration-200 flex items-center justify-center',
                   {
-                    'border-primary-500 bg-primary-500': isSelected,
+                    'border-primary-500': isSelected,
                     'border-gray-300': !isSelected,
                   }
                 )}>
                   {isSelected && (
-                    <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                    <div className="w-2 h-2 rounded-full bg-primary-500"></div>
                   )}
                 </div>
               </div>
@@ -73,7 +69,7 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
       </div>
       
       <p className="text-xs text-gray-500">
-        Selected {selectedTimeRanges.length} of {proposedTimeRanges.length} time ranges
+        {selectedTimeRange ? 'Time selected' : 'Please select a time that works for you'}
       </p>
     </div>
   );

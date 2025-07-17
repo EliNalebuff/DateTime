@@ -53,7 +53,7 @@ export interface PartnerAData {
 
 export interface PartnerBData {
   email: string;
-  selectedTimeRanges: string[]; // IDs of time ranges that work for Person B
+  selectedTimeRange: string; // ID of the single time range selected by Person B
   ageRange: string;
   budget: number;
   splitCosts: boolean;

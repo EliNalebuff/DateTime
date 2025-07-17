@@ -94,7 +94,7 @@ const DateSessionSchema = new mongoose.Schema({
   },
   partnerB: {
     phone: String, // Partner B's phone number
-    selectedTimeRanges: [String],
+    selectedTimeRange: String, // Single selected time range ID
     ageRange: String,
     budget: Number,
     splitCosts: Boolean,
@@ -325,6 +325,11 @@ const sendFinalDateEmail = async (email, dateOption, selectedTimeRange) => {
   try {
     const timeInfo = selectedTimeRange ? `<p style="font-size: 18px; color: #667eea;"><strong>⏰ Time:</strong> ${selectedTimeRange}</p>` : '';
     
+    // Extract location from venues array
+    const locationText = dateOption.venues && dateOption.venues.length > 0 
+      ? dateOption.venues.map(venue => venue.name).join(' & ')
+      : 'Location details in description';
+    
     const mailOptions = {
       from: `"DateFinder AI" <${process.env.GMAIL_USER}>`,
       to: email,
@@ -339,8 +344,8 @@ const sendFinalDateEmail = async (email, dateOption, selectedTimeRange) => {
             
             <div style="background-color: white; border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
               <h3 style="color: #667eea; margin-top: 0;">${dateOption.title}</h3>
-              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>📍 Location:</strong> ${dateOption.location}</p>
-              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>💰 Cost:</strong> ${dateOption.cost}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>📍 Location:</strong> ${locationText}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>💰 Cost:</strong> ${dateOption.estimatedCost || 'Cost estimate included in description'}</p>
               <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>⏱️ Duration:</strong> ${dateOption.duration}</p>
               ${timeInfo}
               
@@ -471,6 +476,11 @@ const sendPartnerBConfirmationEmail = async (email, finalDate) => {
   }
   
   try {
+    // Extract location from venues array
+    const locationText = finalDate.venues && finalDate.venues.length > 0 
+      ? finalDate.venues.map(venue => venue.name).join(' & ')
+      : 'Location details in description';
+    
     const mailOptions = {
       from: `"DateFinder AI" <${process.env.GMAIL_USER}>`,
       to: email,
@@ -486,8 +496,8 @@ const sendPartnerBConfirmationEmail = async (email, finalDate) => {
             <div style="background-color: white; border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
               <p style="font-size: 18px; color: #667eea; text-align: center; font-weight: bold;">Your partner chose:</p>
               <h3 style="color: #667eea; margin-top: 10px; text-align: center;">${finalDate.title}</h3>
-              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>📍 Location:</strong> ${finalDate.location}</p>
-              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>💰 Cost:</strong> ${finalDate.cost}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>📍 Location:</strong> ${locationText}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>💰 Cost:</strong> ${finalDate.estimatedCost || 'Cost estimate included in description'}</p>
               <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>⏱️ Duration:</strong> ${finalDate.duration}</p>
               
               <div style="margin-top: 20px; padding: 15px; background-color: #f8f9ff; border-radius: 10px;">
@@ -2018,8 +2028,8 @@ app.post('/api/final-choice/:uuid', async (req, res) => {
     // Send email to Partner A with the final date details
     if (session.originatorEmail) {
       try {
-        const selectedTimeRange = session.partnerB?.selectedTimeRanges?.length > 0 
-          ? session.partnerA.proposedTimeRanges.find(tr => session.partnerB.selectedTimeRanges.includes(tr.id))?.displayText
+        const selectedTimeRange = session.partnerB?.selectedTimeRange 
+          ? session.partnerA.proposedTimeRanges.find(tr => tr.id === session.partnerB.selectedTimeRange)?.displayText
           : null;
 
         console.log('Sending final date email to Partner A:', session.originatorEmail);
@@ -2093,9 +2103,9 @@ app.post('/api/finalize/:uuid', async (req, res) => {
 
     const finalDate = session.dateOptions.find(option => option.id === finalChoice);
 
-    // Get the selected time range for the SMS
-    const selectedTimeRange = session.partnerB?.selectedTimeRanges?.length > 0 
-      ? session.partnerA.proposedTimeRanges.find(tr => session.partnerB.selectedTimeRanges.includes(tr.id))?.displayText
+    // Get the selected time range for the email
+    const selectedTimeRange = session.partnerB?.selectedTimeRange 
+      ? session.partnerA.proposedTimeRanges.find(tr => tr.id === session.partnerB.selectedTimeRange)?.displayText
       : null;
 
     // Send email to the originator with the final date details
