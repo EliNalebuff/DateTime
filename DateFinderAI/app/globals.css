@@ -80,6 +80,22 @@ a {
   @apply block text-sm font-medium text-red-700 mb-2;
 }
 
+/* Pulsing border animation for required fields */
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: rgb(248 113 113); /* red-400 */
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4);
+  }
+  50% {
+    border-color: rgb(239 68 68); /* red-500 */
+    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.2);
+  }
+}
+
+.pulse-red-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
 /* Card styles */
 .card {
   @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 ease-in-out;
