@@ -16,7 +16,7 @@ export interface TimeRange {
 }
 
 export interface PartnerAData {
-  phone: string;
+  email: string;
   location: string;
   proposedTimeRanges: TimeRange[]; // Up to 5 specific date/time ranges
   dateDuration: string;
@@ -52,7 +52,7 @@ export interface PartnerAData {
 }
 
 export interface PartnerBData {
-  phone: string;
+  email: string;
   selectedTimeRanges: string[]; // IDs of time ranges that work for Person B
   ageRange: string;
   budget: number;

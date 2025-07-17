@@ -5,8 +5,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 interface User {
   id: string;
   name: string;
-  phone: string;
-  authMethod: 'password' | 'sms';
+  email: string;
+  authMethod: 'password' | 'email';
 }
 
 interface AuthContextType {

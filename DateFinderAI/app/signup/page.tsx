@@ -9,35 +9,24 @@ import { Phone, Lock, MessageCircle, Eye, EyeOff, UserPlus } from 'lucide-react'
 
 export default function SignupPage() {
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [authMethod, setAuthMethod] = useState<'password' | 'sms'>('sms');
+  const [authMethod, setAuthMethod] = useState<'password' | 'email'>('email');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<'signup' | 'verify'>('signup');
   const [verificationCode, setVerificationCode] = useState('');
   const router = useRouter();
 
-  const formatPhoneNumber = (value: string) => {
-    // Remove all non-digit characters
-    const digits = value.replace(/\D/g, '');
-    
-    // Format as (XXX) XXX-XXXX
-    if (digits.length >= 10) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-    } else if (digits.length >= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length >= 3) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    }
-    return digits;
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setPhone(formatted);
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
   };
 
   const validatePassword = (password: string) => {
@@ -68,6 +57,13 @@ export default function SignupPage() {
       return;
     }
 
+    // Validate email
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      setIsLoading(false);
+      return;
+    }
+
     // Validate password if using password method
     if (authMethod === 'password') {
       const passwordError = validatePassword(password);
@@ -92,7 +88,7 @@ export default function SignupPage() {
         },
         body: JSON.stringify({
           name: name.trim(),
-          phone,
+          email,
           authMethod,
         }),
       });
@@ -123,7 +119,7 @@ export default function SignupPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phone,
+          email,
           code: verificationCode,
           password: authMethod === 'password' ? password : undefined,
         }),
@@ -156,7 +152,7 @@ export default function SignupPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
@@ -183,9 +179,9 @@ export default function SignupPage() {
               <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-primary-600" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Verify Your Phone</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Verify Your Email</h1>
               <p className="text-gray-600 mt-2">
-                Enter the 6-digit code sent to {phone}
+                Enter the 6-digit code sent to {email}
               </p>
             </div>
 
@@ -271,13 +267,13 @@ export default function SignupPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number
+                Email Address
               </label>
               <input
-                type="tel"
-                value={phone}
-                onChange={handlePhoneChange}
-                placeholder="(555) 123-4567"
+                type="email"
+                value={email}
+                onChange={handleEmailChange}
+                placeholder="you@example.com"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               />
@@ -290,16 +286,16 @@ export default function SignupPage() {
               <div className="flex gap-4">
                 <button
                   type="button"
-                  onClick={() => setAuthMethod('sms')}
+                  onClick={() => setAuthMethod('email')}
                   className={`flex-1 p-3 rounded-lg border-2 transition-all ${
-                    authMethod === 'sms'
+                    authMethod === 'email'
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <MessageCircle className="w-5 h-5 mx-auto mb-1" />
-                  <div className="text-sm font-medium">SMS Code</div>
-                  <div className="text-xs text-gray-500">Login with SMS</div>
+                  <div className="text-sm font-medium">Email Code</div>
+                  <div className="text-xs text-gray-500">Login with email</div>
                 </button>
                 <button
                   type="button"

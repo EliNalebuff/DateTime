@@ -7,7 +7,7 @@ const OpenAI = require('openai');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
-const twilio = require('twilio');
+const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 const app = express();
@@ -162,12 +162,12 @@ const DateSession = mongoose.model('DateSession', DateSessionSchema);
 // User Schema for Authentication
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  phone: { type: String, unique: true, required: true },
+  email: { type: String, unique: true, required: true },
   password: { type: String }, // Optional - for password-based auth
   isVerified: { type: Boolean, default: false },
-  verificationCode: { type: String }, // For SMS verification
+  verificationCode: { type: String }, // For email verification
   verificationCodeExpiry: { type: Date },
-  authMethod: { type: String, enum: ['password', 'sms'], default: 'sms' },
+  authMethod: { type: String, enum: ['password', 'email'], default: 'email' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -240,9 +240,15 @@ const IcebreakerGame = mongoose.model('IcebreakerGame', IcebreakerGameSchema);
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Twilio Client
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN ? 
-  twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) : null;
+// Email transporter using Gmail
+const emailTransporter = process.env.GMAIL_USER && process.env.GMAIL_PASS ? 
+  nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS // App password, not regular password
+    }
+  }) : null;
 
 // Rate limiting for auth endpoints
 const authLimiter = rateLimit({
@@ -253,10 +259,10 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Rate limiting for SMS verification
-const smsLimiter = rateLimit({
+// Rate limiting for email verification
+const emailLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 1, // limit each IP to 1 SMS per minute
+  max: 1, // limit each IP to 1 email per minute
   message: 'Please wait before requesting another verification code.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -272,105 +278,238 @@ const generateVerificationCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
 };
 
-const sendSMSVerification = async (phone, code) => {
-  if (!twilioClient) {
-    console.log('Twilio not configured. Would send SMS:', phone, code);
-    return { success: true, message: 'SMS sent (simulated)' };
+const sendEmailVerification = async (email, code) => {
+  if (!emailTransporter) {
+    console.log('Email not configured. Would send email:', email, code);
+    return { success: true, message: 'Email sent (simulated)' };
   }
   
   try {
-    const message = await twilioClient.messages.create({
-      body: `Your DateFinder verification code is: ${code}`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone
-    });
-    console.log('SMS sent successfully:', message.sid);
-    return { success: true, message: 'SMS sent successfully' };
+    const mailOptions = {
+      from: `"DateFinder AI" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: '🔐 Your DateFinder Verification Code',
+      html: `
+        <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">💕 DateFinder AI</h1>
+          </div>
+          <div style="padding: 30px; background-color: #f9f9f9;">
+            <h2 style="color: #333;">Your Verification Code</h2>
+            <p style="font-size: 16px; color: #666;">Here's your verification code to continue with DateFinder:</p>
+            <div style="background-color: white; border: 2px solid #667eea; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0;">
+              <span style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 5px;">${code}</span>
+            </div>
+            <p style="font-size: 14px; color: #999;">This code will expire in 10 minutes.</p>
+            <p style="font-size: 14px; color: #999;">If you didn't request this code, please ignore this email.</p>
+          </div>
+        </div>
+      `
+    };
+    
+    await emailTransporter.sendMail(mailOptions);
+    console.log('Email sent successfully to:', email);
+    return { success: true, message: 'Email sent successfully' };
   } catch (error) {
-    console.error('SMS sending error:', error);
-    return { success: false, message: 'Failed to send SMS' };
+    console.error('Email sending error:', error);
+    return { success: false, message: 'Failed to send email' };
   }
 };
 
-const sendFinalDateSMS = async (phone, dateOption, selectedTimeRange) => {
-  if (!twilioClient) {
-    console.log('Twilio not configured. Would send final date SMS:', phone, dateOption.title);
-    return { success: true, message: 'SMS sent (simulated)' };
+const sendFinalDateEmail = async (email, dateOption, selectedTimeRange) => {
+  if (!emailTransporter) {
+    console.log('Email not configured. Would send final date email:', email, dateOption.title);
+    return { success: true, message: 'Email sent (simulated)' };
   }
   
   try {
-    const timeInfo = selectedTimeRange ? `\nTime: ${selectedTimeRange}` : '';
-    const message = await twilioClient.messages.create({
-      body: `🎉 Your date is confirmed!\n\n${dateOption.title}\n📍 ${dateOption.location}\n💰 ${dateOption.cost}\n⏱️ ${dateOption.duration}\n\n${dateOption.description}\n\nTime to make some memories! 💕`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone
-    });
-    console.log('Final date SMS sent successfully:', message.sid);
-    return { success: true, message: 'Final date SMS sent successfully' };
+    const timeInfo = selectedTimeRange ? `<p style="font-size: 18px; color: #667eea;"><strong>⏰ Time:</strong> ${selectedTimeRange}</p>` : '';
+    
+    const mailOptions = {
+      from: `"DateFinder AI" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: '🎉 Your Date is Confirmed!',
+      html: `
+        <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">💕 DateFinder AI</h1>
+          </div>
+          <div style="padding: 30px; background-color: #f9f9f9;">
+            <h2 style="color: #333; text-align: center;">🎉 Your Date is Confirmed!</h2>
+            
+            <div style="background-color: white; border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <h3 style="color: #667eea; margin-top: 0;">${dateOption.title}</h3>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>📍 Location:</strong> ${dateOption.location}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>💰 Cost:</strong> ${dateOption.cost}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>⏱️ Duration:</strong> ${dateOption.duration}</p>
+              ${timeInfo}
+              
+              <div style="margin-top: 20px; padding: 15px; background-color: #f8f9ff; border-radius: 10px;">
+                <p style="color: #666; margin: 0;">${dateOption.description}</p>
+              </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="font-size: 18px; color: #667eea; font-weight: bold;">Time to make some memories! 💕</p>
+              <p style="font-size: 14px; color: #999;">Have an amazing time on your date!</p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+    
+    await emailTransporter.sendMail(mailOptions);
+    console.log('Final date email sent successfully to:', email);
+    return { success: true, message: 'Final date email sent successfully' };
   } catch (error) {
-    console.error('Final date SMS sending error:', error);
-    return { success: false, message: 'Failed to send final date SMS' };
+    console.error('Final date email sending error:', error);
+    return { success: false, message: 'Failed to send final date email' };
   }
 };
 
-const sendIcebreakerGameSMS = async (phone, gameId) => {
-  if (!twilioClient) {
-    console.log('Twilio not configured. Would send icebreaker game SMS:', phone, gameId);
-    return { success: true, message: 'SMS sent (simulated)' };
+const sendIcebreakerGameEmail = async (email, gameId) => {
+  if (!emailTransporter) {
+    console.log('Email not configured. Would send icebreaker game email:', email, gameId);
+    return { success: true, message: 'Email sent (simulated)' };
   }
   
   try {
-            const gameUrl = `${process.env.BASE_URL}/icebreaker/${gameId}`;
-    const message = await twilioClient.messages.create({
-      body: `🎮 Time for a fun icebreaker game!\n\nGet to know each other better with this quick guessing game. Both of you can play together!\n\n${gameUrl}\n\nHave fun! 💕`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone
-    });
-    console.log('Icebreaker game SMS sent successfully:', message.sid);
-    return { success: true, message: 'Icebreaker game SMS sent successfully' };
+    const gameUrl = `${process.env.BASE_URL}/icebreaker/${gameId}`;
+    
+    const mailOptions = {
+      from: `"DateFinder AI" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: '🎮 Fun Icebreaker Game Time!',
+      html: `
+        <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">💕 DateFinder AI</h1>
+          </div>
+          <div style="padding: 30px; background-color: #f9f9f9;">
+            <h2 style="color: #333; text-align: center;">🎮 Time for a Fun Icebreaker Game!</h2>
+            
+            <div style="background-color: white; border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <p style="font-size: 18px; color: #666; text-align: center;">Get to know each other better with this quick guessing game. Both of you can play together!</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${gameUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-size: 18px; font-weight: bold; display: inline-block;">🎮 Start Game</a>
+              </div>
+              
+              <p style="font-size: 14px; color: #999; text-align: center;">Click the button above or copy this link: <br>${gameUrl}</p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="font-size: 18px; color: #667eea; font-weight: bold;">Have fun! 💕</p>
+              <p style="font-size: 14px; color: #999;">This is a great way to break the ice before your date!</p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+    
+    await emailTransporter.sendMail(mailOptions);
+    console.log('Icebreaker game email sent successfully to:', email);
+    return { success: true, message: 'Icebreaker game email sent successfully' };
   } catch (error) {
-    console.error('Icebreaker game SMS sending error:', error);
-    return { success: false, message: 'Failed to send icebreaker game SMS' };
+    console.error('Icebreaker game email sending error:', error);
+    return { success: false, message: 'Failed to send icebreaker game email' };
   }
 };
 
-const sendPartnerAFinalChoiceSMS = async (phone, finalChoiceUrl) => {
-  if (!twilioClient) {
-    console.log('Twilio not configured. Would send Partner A final choice SMS:', phone, finalChoiceUrl);
-    return { success: true, message: 'SMS sent (simulated)' };
+const sendPartnerAFinalChoiceEmail = async (email, finalChoiceUrl) => {
+  if (!emailTransporter) {
+    console.log('Email not configured. Would send Partner A final choice email:', email, finalChoiceUrl);
+    return { success: true, message: 'Email sent (simulated)' };
   }
  
   try {
-    const message = await twilioClient.messages.create({
-      body: `🎉 Great news! Your date partner has narrowed it down to 2 perfect options.\n\nNow it's time for you to choose which one sounds best!\n\n${finalChoiceUrl}\n\nClick the link to make your final choice! 💕`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone
-    });
-    console.log('Partner A final choice SMS sent successfully:', message.sid);
-    return { success: true, message: 'Partner A final choice SMS sent successfully' };
+    const mailOptions = {
+      from: `"DateFinder AI" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: '🎉 Time to Make Your Final Choice!',
+      html: `
+        <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">💕 DateFinder AI</h1>
+          </div>
+          <div style="padding: 30px; background-color: #f9f9f9;">
+            <h2 style="color: #333; text-align: center;">🎉 Great News!</h2>
+            
+            <div style="background-color: white; border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <p style="font-size: 18px; color: #666; text-align: center;">Your date partner has narrowed it down to 2 perfect options!</p>
+              <p style="font-size: 18px; color: #667eea; text-align: center; font-weight: bold;">Now it's time for you to choose which one sounds best!</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${finalChoiceUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-size: 18px; font-weight: bold; display: inline-block;">💕 Make Your Choice</a>
+              </div>
+              
+              <p style="font-size: 14px; color: #999; text-align: center;">Click the button above or copy this link: <br>${finalChoiceUrl}</p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="font-size: 18px; color: #667eea; font-weight: bold;">Almost there! 💕</p>
+              <p style="font-size: 14px; color: #999;">Your perfect date is just one click away!</p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+    
+    await emailTransporter.sendMail(mailOptions);
+    console.log('Partner A final choice email sent successfully to:', email);
+    return { success: true, message: 'Partner A final choice email sent successfully' };
   } catch (error) {
-    console.error('Partner A final choice SMS sending error:', error);
-    return { success: false, message: 'Failed to send Partner A final choice SMS' };
+    console.error('Partner A final choice email sending error:', error);
+    return { success: false, message: 'Failed to send Partner A final choice email' };
   }
 };
 
-const sendPartnerBConfirmationSMS = async (phone, finalDate) => {
-  if (!twilioClient) {
-    console.log('Twilio not configured. Would send Partner B confirmation SMS:', phone, finalDate.title);
-    return { success: true, message: 'SMS sent (simulated)' };
+const sendPartnerBConfirmationEmail = async (email, finalDate) => {
+  if (!emailTransporter) {
+    console.log('Email not configured. Would send Partner B confirmation email:', email, finalDate.title);
+    return { success: true, message: 'Email sent (simulated)' };
   }
   
   try {
-    const message = await twilioClient.messages.create({
-      body: `🎉 Your date is confirmed!\n\nYour partner chose: ${finalDate.title}\n📍 ${finalDate.location}\n💰 ${finalDate.cost}\n⏱️ ${finalDate.duration}\n\n${finalDate.description}\n\nTime to make some memories! 💕`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone
-    });
-    console.log('Partner B confirmation SMS sent successfully:', message.sid);
-    return { success: true, message: 'Partner B confirmation SMS sent successfully' };
+    const mailOptions = {
+      from: `"DateFinder AI" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: '🎉 Your Date is Confirmed!',
+      html: `
+        <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">💕 DateFinder AI</h1>
+          </div>
+          <div style="padding: 30px; background-color: #f9f9f9;">
+            <h2 style="color: #333; text-align: center;">🎉 Your Date is Confirmed!</h2>
+            
+            <div style="background-color: white; border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <p style="font-size: 18px; color: #667eea; text-align: center; font-weight: bold;">Your partner chose:</p>
+              <h3 style="color: #667eea; margin-top: 10px; text-align: center;">${finalDate.title}</h3>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>📍 Location:</strong> ${finalDate.location}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>💰 Cost:</strong> ${finalDate.cost}</p>
+              <p style="font-size: 18px; color: #333; margin: 10px 0;"><strong>⏱️ Duration:</strong> ${finalDate.duration}</p>
+              
+              <div style="margin-top: 20px; padding: 15px; background-color: #f8f9ff; border-radius: 10px;">
+                <p style="color: #666; margin: 0;">${finalDate.description}</p>
+              </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="font-size: 18px; color: #667eea; font-weight: bold;">Time to make some memories! 💕</p>
+              <p style="font-size: 14px; color: #999;">Have an amazing time on your date!</p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+    
+    await emailTransporter.sendMail(mailOptions);
+    console.log('Partner B confirmation email sent successfully to:', email);
+    return { success: true, message: 'Partner B confirmation email sent successfully' };
   } catch (error) {
-    console.error('Partner B confirmation SMS sending error:', error);
-    return { success: false, message: 'Failed to send Partner B confirmation SMS' };
+    console.error('Partner B confirmation email sending error:', error);
+    return { success: false, message: 'Failed to send Partner B confirmation email' };
   }
 };
 
@@ -1082,32 +1221,37 @@ async function generateIcebreakerQuestions(partnerA, partnerB) {
 
 // Authentication Routes
 
-// POST /api/auth/register - Start phone registration
+// POST /api/auth/register - Start email registration
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { name, phone, authMethod } = req.body;
+    const { name, email, authMethod } = req.body;
 
-    if (!name || !phone) {
-      return res.status(400).json({ success: false, error: 'Name and phone number are required' });
+    if (!name || !email) {
+      return res.status(400).json({ success: false, error: 'Name and email are required' });
     }
 
-    // Normalize phone number (remove spaces, dashes, etc.)
-    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid email address' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
 
     let user = null;
     let usingTempStorage = false;
 
     try {
       // Check if user already exists
-      user = await User.findOne({ phone: normalizedPhone });
+      user = await User.findOne({ email: normalizedEmail });
     } catch (mongoError) {
       // Check temporary storage
-      user = Array.from(tempUsers.values()).find(u => u.phone === normalizedPhone);
+      user = Array.from(tempUsers.values()).find(u => u.email === normalizedEmail);
       usingTempStorage = true;
     }
 
     if (user && user.isVerified) {
-      return res.status(400).json({ success: false, error: 'Phone number already registered' });
+      return res.status(400).json({ success: false, error: 'Email already registered' });
     }
 
     // Generate verification code
@@ -1116,8 +1260,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     const userData = {
       name,
-      phone: normalizedPhone,
-      authMethod: authMethod || 'sms',
+      email: normalizedEmail,
+      authMethod: authMethod || 'email',
       verificationCode,
       verificationCodeExpiry,
       isVerified: false,
@@ -1148,9 +1292,9 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       tempUsers.set(user._id, user);
     }
 
-    // Send SMS verification
-    const smsResult = await sendSMSVerification(normalizedPhone, verificationCode);
-    if (!smsResult.success) {
+    // Send Email verification
+    const emailResult = await sendEmailVerification(normalizedEmail, verificationCode);
+    if (!emailResult.success) {
       return res.status(500).json({ success: false, error: 'Failed to send verification code' });
     }
 
@@ -1166,16 +1310,16 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/verify - Verify phone number
+// POST /api/auth/verify - Verify email address
 app.post('/api/auth/verify', authLimiter, async (req, res) => {
   try {
-    const { phone, code, password } = req.body;
+    const { email, code, password } = req.body;
 
-    if (!phone || !code) {
-      return res.status(400).json({ success: false, error: 'Phone number and code are required' });
+    if (!email || !code) {
+      return res.status(400).json({ success: false, error: 'Email and code are required' });
     }
 
-    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    const normalizedEmail = email.toLowerCase().trim();
     let user = null;
     let usingTempStorage = false;
 
@@ -1221,16 +1365,16 @@ app.post('/api/auth/verify', authLimiter, async (req, res) => {
     }
 
     // Generate JWT token
-    const token = generateToken(user._id, normalizedPhone);
+    const token = generateToken(user._id, normalizedEmail);
 
     res.json({
       success: true,
-      message: 'Phone number verified successfully',
+      message: 'Email verified successfully',
       token,
       user: {
         id: user._id,
         name: user.name,
-        phone: normalizedPhone,
+        email: normalizedEmail,
         authMethod: user.authMethod
       }
     });
@@ -1240,23 +1384,29 @@ app.post('/api/auth/verify', authLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/login - Login with phone and password or request SMS
+// POST /api/auth/login - Login with email and password or request email verification
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
-    const { phone, password, requestSMS } = req.body;
+    const { email, password, requestEmail } = req.body;
 
-    if (!phone) {
-      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
     }
 
-    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid email address' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
     let user = null;
     let usingTempStorage = false;
 
     try {
-      user = await User.findOne({ phone: normalizedPhone });
+      user = await User.findOne({ email: normalizedEmail });
     } catch (mongoError) {
-      user = Array.from(tempUsers.values()).find(u => u.phone === normalizedPhone);
+      user = Array.from(tempUsers.values()).find(u => u.email === normalizedEmail);
       usingTempStorage = true;
     }
 
@@ -1275,7 +1425,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
       }
 
       // Generate JWT token
-      const token = generateToken(user._id, normalizedPhone);
+      const token = generateToken(user._id, normalizedEmail);
 
       res.json({
         success: true,
@@ -1284,12 +1434,12 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
-          phone: normalizedPhone,
+          email: normalizedEmail,
           authMethod: user.authMethod
         }
       });
-    } else if (user.authMethod === 'sms' || requestSMS) {
-      // Send SMS verification code
+    } else if (user.authMethod === 'email' || requestEmail) {
+      // Send email verification code
       const verificationCode = generateVerificationCode();
       const verificationCodeExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -1307,8 +1457,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         tempUsers.set(user._id, user);
       }
 
-      const smsResult = await sendSMSVerification(normalizedPhone, verificationCode);
-      if (!smsResult.success) {
+      const emailResult = await sendEmailVerification(normalizedEmail, verificationCode);
+      if (!emailResult.success) {
         return res.status(500).json({ success: false, error: 'Failed to send verification code' });
       }
 
@@ -1325,16 +1475,16 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/verify-login - Verify SMS code for login
+// POST /api/auth/verify-login - Verify email code for login
 app.post('/api/auth/verify-login', authLimiter, async (req, res) => {
   try {
-    const { phone, code } = req.body;
+    const { email, code } = req.body;
 
-    if (!phone || !code) {
-      return res.status(400).json({ success: false, error: 'Phone number and code are required' });
+    if (!email || !code) {
+      return res.status(400).json({ success: false, error: 'Email and code are required' });
     }
 
-    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    const normalizedEmail = email.toLowerCase().trim();
     let user = null;
     let usingTempStorage = false;
 
@@ -1373,7 +1523,7 @@ app.post('/api/auth/verify-login', authLimiter, async (req, res) => {
     }
 
     // Generate JWT token
-    const token = generateToken(user._id, normalizedPhone);
+    const token = generateToken(user._id, normalizedEmail);
 
     res.json({
       success: true,
@@ -1382,7 +1532,7 @@ app.post('/api/auth/verify-login', authLimiter, async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        phone: normalizedPhone,
+        email: normalizedEmail,
         authMethod: user.authMethod
       }
     });
@@ -1393,22 +1543,22 @@ app.post('/api/auth/verify-login', authLimiter, async (req, res) => {
 });
 
 // POST /api/auth/resend-code - Resend verification code
-app.post('/api/auth/resend-code', smsLimiter, async (req, res) => {
+app.post('/api/auth/resend-code', emailLimiter, async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { email } = req.body;
 
-    if (!phone) {
-      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
     }
 
-    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    const normalizedEmail = email.toLowerCase().trim();
     let user = null;
     let usingTempStorage = false;
 
     try {
-      user = await User.findOne({ phone: normalizedPhone });
+      user = await User.findOne({ email: normalizedEmail });
     } catch (mongoError) {
-      user = Array.from(tempUsers.values()).find(u => u.phone === normalizedPhone);
+      user = Array.from(tempUsers.values()).find(u => u.email === normalizedEmail);
       usingTempStorage = true;
     }
 
@@ -1434,8 +1584,8 @@ app.post('/api/auth/resend-code', smsLimiter, async (req, res) => {
       tempUsers.set(user._id, user);
     }
 
-    const smsResult = await sendSMSVerification(normalizedPhone, verificationCode);
-    if (!smsResult.success) {
+    const emailResult = await sendEmailVerification(normalizedEmail, verificationCode);
+    if (!emailResult.success) {
       return res.status(500).json({ success: false, error: 'Failed to send verification code' });
     }
 
