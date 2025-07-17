@@ -8,11 +8,24 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   question,
   children,
   className,
+  required = false,
+  isEmpty = false,
 }) => {
+  const isHighlighted = required && isEmpty;
+  
   return (
-    <div className={cn('card card-hover', className)}>
+    <div className={cn(
+      'card card-hover transition-all duration-200',
+      isHighlighted 
+        ? 'border-2 border-red-300 bg-red-50 shadow-red-100' 
+        : '',
+      className
+    )}>
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800 leading-relaxed">
+        <h3 className={cn(
+          'text-lg font-semibold leading-relaxed',
+          isHighlighted ? 'text-red-700' : 'text-gray-800'
+        )}>
           {question}
         </h3>
         <div className="space-y-3">

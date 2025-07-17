@@ -163,6 +163,8 @@ export interface QuestionCardProps {
   question: string;
   children: any;
   className?: string;
+  required?: boolean;
+  isEmpty?: boolean;
 }
 
 export interface ButtonProps {

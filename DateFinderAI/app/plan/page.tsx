@@ -376,7 +376,11 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
 
   return (
     <div className="space-y-6">
-      <QuestionCard question="What's your email address? *">
+      <QuestionCard 
+        question="What's your email address? *"
+        required={true}
+        isEmpty={!formData.email?.trim()}
+      >
         <input
           type="email"
           value={formData.email}
@@ -389,7 +393,11 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
         </p>
       </QuestionCard>
 
-      <QuestionCard question="Where should we plan the date? *">
+      <QuestionCard 
+        question="Where should we plan the date? *"
+        required={true}
+        isEmpty={!formData.location?.trim()}
+      >
         <LocationInput
           value={formData.location}
           onChange={(value) => updateFormData('location', value)}
@@ -400,7 +408,11 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
         />
       </QuestionCard>
 
-      <QuestionCard question="What's your age range?">
+      <QuestionCard 
+        question="What's your age range? *"
+        required={true}
+        isEmpty={!formData.ageRange}
+      >
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
           {ageRangeOptions.map((range) => (
             <button
@@ -419,7 +431,11 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
         </div>
       </QuestionCard>
 
-      <QuestionCard question="When are you available for this date?">
+      <QuestionCard 
+        question="When are you available for this date? *"
+        required={true}
+        isEmpty={formData.proposedTimeRanges.length === 0}
+      >
         <TimeRangePicker
           selectedRanges={formData.proposedTimeRanges}
           onChange={(ranges) => updateFormData('proposedTimeRanges', ranges)}
@@ -427,7 +443,11 @@ function Step1LocationTime({ formData, updateFormData }: { formData: PartnerADat
         />
       </QuestionCard>
 
-      <QuestionCard question="How long should the date last?">
+      <QuestionCard 
+        question="How long should the date last? *"
+        required={true}
+        isEmpty={!formData.dateDuration}
+      >
         <div className="grid grid-cols-2 gap-3">
           {durationOptions.map((duration) => (
             <button
@@ -469,7 +489,11 @@ function Step2BudgetFood({ formData, updateFormData }: { formData: PartnerAData;
 
   return (
     <div className="space-y-6">
-      <QuestionCard question="What's your budget for the date?">
+      <QuestionCard 
+        question="What's your budget for the date? *"
+        required={true}
+        isEmpty={formData.budget <= 0}
+      >
         <Slider
           min={10}
           max={500}
@@ -557,7 +581,11 @@ function Step3Preferences({ formData, updateFormData }: { formData: PartnerAData
 
   return (
     <div className="space-y-6">
-      <QuestionCard question="What vibe are you in the mood for?">
+      <QuestionCard 
+        question="What vibe are you in the mood for? *"
+        required={true}
+        isEmpty={formData.vibe.length === 0}
+      >
         <MultiSelectChips
           options={vibeOptions}
           selected={formData.vibe}

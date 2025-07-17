@@ -547,7 +547,11 @@ function Step1TimeBasics({
         </p>
       </QuestionCard>
 
-      <QuestionCard question="Which of these times work for you?">
+      <QuestionCard 
+        question="Which of these times work for you? *"
+        required={true}
+        isEmpty={!formData.selectedTimeRange}
+      >
         <TimeRangeSelector
           proposedTimeRanges={proposedTimeRanges}
           selectedTimeRange={formData.selectedTimeRange}
@@ -555,7 +559,11 @@ function Step1TimeBasics({
         />
       </QuestionCard>
 
-      <QuestionCard question="What's your age range?">
+      <QuestionCard 
+        question="What's your age range? *"
+        required={true}
+        isEmpty={!formData.ageRange}
+      >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {ageRangeOptions.map((range) => (
             <button
@@ -591,7 +599,11 @@ function Step2BudgetFood({
 
   return (
     <div className="space-y-6">
-      <QuestionCard question="What's your budget for the date?">
+      <QuestionCard 
+        question="What's your budget for the date? *"
+        required={true}
+        isEmpty={formData.budget <= 0}
+      >
         <Slider
           min={10}
           max={500}
@@ -685,7 +697,11 @@ function Step3VibePreferences({
 
   return (
     <div className="space-y-6">
-      <QuestionCard question="What kind of vibe are you in the mood for?">
+      <QuestionCard 
+        question="What kind of vibe are you in the mood for? *"
+        required={true}
+        isEmpty={formData.vibe.length === 0}
+      >
         <MultiSelectChips
           options={vibeOptions}
           selected={formData.vibe}
@@ -763,7 +779,11 @@ function Step3VibePreferences({
         </div>
       </QuestionCard>
 
-      <QuestionCard question="Alcohol preference?">
+      <QuestionCard 
+        question="Alcohol preference? *"
+        required={true}
+        isEmpty={!formData.alcoholPreference}
+      >
         <div className="grid grid-cols-3 gap-3">
           {['Yes, please', 'No, thanks', 'Don\'t mind'].map((option) => (
             <button
@@ -782,10 +802,14 @@ function Step3VibePreferences({
         </div>
       </QuestionCard>
 
-      <QuestionCard question="Setting preferences">
+      <QuestionCard 
+        question="Setting preferences *"
+        required={true}
+        isEmpty={!formData.publicPrivate || !formData.indoorOutdoor}
+      >
         <div className="space-y-4">
           <div>
-            <label className="form-label">Public or private setting?</label>
+            <label className="form-label">Public or private setting? *</label>
             <div className="grid grid-cols-2 gap-3">
               {['Public', 'Private'].map((option) => (
                 <button
@@ -805,7 +829,7 @@ function Step3VibePreferences({
           </div>
 
           <div>
-            <label className="form-label">Indoor or outdoor?</label>
+            <label className="form-label">Indoor or outdoor? *</label>
             <div className="grid grid-cols-3 gap-3">
               {['Indoor', 'Outdoor', 'Either'].map((option) => (
                 <button
