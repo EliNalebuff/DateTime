@@ -242,7 +242,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Email transporter using Gmail
 const emailTransporter = process.env.GMAIL_USER && process.env.GMAIL_PASS ? 
-  nodemailer.createTransporter({
+  nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER,
