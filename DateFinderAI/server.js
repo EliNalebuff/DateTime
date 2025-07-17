@@ -49,7 +49,7 @@ mongoose.connect(MONGODB_URI, {
 // Database Schema
 const DateSessionSchema = new mongoose.Schema({
   uuid: { type: String, unique: true, required: true },
-  originatorPhone: { type: String, required: true }, // Phone number of the person who created the date plan
+  originatorEmail: { type: String, required: true }, // Email of the person who created the date plan
   partnerA: {
     location: String,
     proposedTimeRanges: [{
@@ -540,9 +540,9 @@ const scheduleIcebreakerGame = async (uuid) => {
           session = tempSessions.get(uuid);
         }
 
-        if (session && session.originatorPhone) {
-          // Send SMS with game link
-          await sendIcebreakerGameSMS(session.originatorPhone, data.gameId);
+        if (session && session.originatorEmail) {
+          // Send email with game link
+          await sendIcebreakerGameEmail(session.originatorEmail, data.gameId);
         }
       }
     } catch (error) {
@@ -1620,20 +1620,20 @@ app.post('/api/initiate', async (req, res) => {
     const uuid = uuidv4();
     const partnerAData = req.body;
     
-    // Get phone from form data
-    const originatorPhone = partnerAData.phone;
+    // Get email from form data
+    const originatorEmail = partnerAData.email;
     
-    if (!originatorPhone) {
-      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    if (!originatorEmail) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
     }
 
     console.log('Generated UUID:', uuid);
-    console.log('Originator phone:', originatorPhone);
+    console.log('Originator email:', originatorEmail);
     console.log('Partner A data received:', JSON.stringify(partnerAData).substring(0, 100) + '...');
 
     const sessionData = {
       uuid,
-      originatorPhone,
+      originatorEmail,
       partnerA: partnerAData,
       status: 'initiated',
       createdAt: new Date(),
@@ -1795,8 +1795,8 @@ app.post('/api/respond/:uuid', async (req, res) => {
         console.log('Partner B date selections saved to temporary storage');
       }
 
-      // Send SMS to Partner A (originator) with link to choose final date
-      if (session.originatorPhone) {
+      // Send email to Partner A (originator) with link to choose final date
+      if (session.originatorEmail) {
         try {
           const origin = req.get('origin') || req.get('referer');
           let baseUrl = process.env.BASE_URL;
@@ -1807,15 +1807,15 @@ app.post('/api/respond/:uuid', async (req, res) => {
 
           const finalChoiceUrl = `${baseUrl}/final-choice/${uuid}`;
           
-          console.log('Sending SMS to Partner A for final choice:', session.originatorPhone);
-          const smsResult = await sendPartnerAFinalChoiceSMS(session.originatorPhone, finalChoiceUrl);
-          if (smsResult.success) {
-            console.log('Partner A final choice SMS sent successfully');
+          console.log('Sending email to Partner A for final choice:', session.originatorEmail);
+          const emailResult = await sendPartnerAFinalChoiceEmail(session.originatorEmail, finalChoiceUrl);
+          if (emailResult.success) {
+            console.log('Partner A final choice email sent successfully');
           } else {
-            console.warn('Failed to send Partner A final choice SMS:', smsResult.message);
+            console.warn('Failed to send Partner A final choice email:', emailResult.message);
           }
-        } catch (smsError) {
-          console.error('Error sending Partner A final choice SMS:', smsError);
+        } catch (emailError) {
+          console.error('Error sending Partner A final choice email:', emailError);
         }
       }
 
@@ -2015,22 +2015,22 @@ app.post('/api/final-choice/:uuid', async (req, res) => {
       }
     }
 
-    // Send SMS to Partner A with the final date details
-    if (session.originatorPhone) {
+    // Send email to Partner A with the final date details
+    if (session.originatorEmail) {
       try {
         const selectedTimeRange = session.partnerB?.selectedTimeRanges?.length > 0 
           ? session.partnerA.proposedTimeRanges.find(tr => session.partnerB.selectedTimeRanges.includes(tr.id))?.displayText
           : null;
 
-        console.log('Sending final date SMS to Partner A:', session.originatorPhone);
-        const smsResult = await sendFinalDateSMS(session.originatorPhone, finalDate, selectedTimeRange);
-        if (smsResult.success) {
-          console.log('Final date SMS sent successfully to Partner A');
+        console.log('Sending final date email to Partner A:', session.originatorEmail);
+        const emailResult = await sendFinalDateEmail(session.originatorEmail, finalDate, selectedTimeRange);
+        if (emailResult.success) {
+          console.log('Final date email sent successfully to Partner A');
         } else {
-          console.warn('Failed to send final date SMS to Partner A:', smsResult.message);
+          console.warn('Failed to send final date email to Partner A:', emailResult.message);
         }
-      } catch (smsError) {
-        console.error('Error sending final date SMS to Partner A:', smsError);
+      } catch (emailError) {
+        console.error('Error sending final date email to Partner A:', emailError);
       }
     }
 
@@ -2098,19 +2098,19 @@ app.post('/api/finalize/:uuid', async (req, res) => {
       ? session.partnerA.proposedTimeRanges.find(tr => session.partnerB.selectedTimeRanges.includes(tr.id))?.displayText
       : null;
 
-    // Send SMS to the originator with the final date details
-    if (session.originatorPhone) {
+    // Send email to the originator with the final date details
+    if (session.originatorEmail) {
       try {
-        console.log('Sending final date SMS to:', session.originatorPhone);
-        const smsResult = await sendFinalDateSMS(session.originatorPhone, finalDate, selectedTimeRange);
-        if (smsResult.success) {
-          console.log('Final date SMS sent successfully');
+        console.log('Sending final date email to:', session.originatorEmail);
+        const emailResult = await sendFinalDateEmail(session.originatorEmail, finalDate, selectedTimeRange);
+        if (emailResult.success) {
+          console.log('Final date email sent successfully');
         } else {
-          console.warn('Failed to send final date SMS:', smsResult.message);
+          console.warn('Failed to send final date email:', emailResult.message);
         }
-      } catch (smsError) {
-        console.error('Error sending final date SMS:', smsError);
-        // Don't fail the request if SMS fails - the date is still confirmed
+      } catch (emailError) {
+        console.error('Error sending final date email:', emailError);
+        // Don't fail the request if email fails - the date is still confirmed
       }
 
       // Schedule icebreaker game for 20 minutes from now
