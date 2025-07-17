@@ -513,7 +513,7 @@ function Step1TimeBasics({
   updateFormData: (field: keyof PartnerBData, value: any) => void;
   proposedTimeRanges: TimeRange[];
 }) {
-  const ageRangeOptions = ['20 and under', '21-28', '29-39', '40+'];
+  const ageRangeOptions = ['20 and Under', '21-26', '27-32', '33-40', '40+'];
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -524,15 +524,23 @@ function Step1TimeBasics({
     updateFormData('email', e.target.value);
   };
 
+  // Helper function to determine if a field should be highlighted as required
+  const getInputClassName = (value: any, required: boolean = false) => {
+    if (required && (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'string' && value.trim() === ''))) {
+      return 'form-input-required';
+    }
+    return 'form-input';
+  };
+
   return (
     <div className="space-y-6">
-      <QuestionCard question="What's your email address?">
+      <QuestionCard question="What's your email address? *">
         <input
           type="email"
           value={formData.email}
           onChange={handleEmailChange}
           placeholder="you@example.com"
-          className="form-input"
+          className={getInputClassName(formData.email, true)}
         />
         <p className="text-xs text-gray-500 mt-1">
           We'll send you updates about your date plans
@@ -665,15 +673,9 @@ function Step3VibePreferences({
   ];
 
   const hobbiesOptions = [
-    'Reading', 'Writing', 'Photography', 'Painting', 'Drawing', 'Cooking', 'Baking', 'Gardening',
-    'Hiking', 'Running', 'Cycling', 'Swimming', 'Rock Climbing', 'Yoga', 'Dancing', 'Martial Arts',
-    'Gaming', 'Board Games', 'Chess', 'Puzzles', 'Music', 'Singing', 'Playing Instruments', 'DJing',
-    'Movies', 'Theater', 'Stand-up Comedy', 'Museums', 'Art Galleries', 'Concerts', 'Festivals',
-    'Travel', 'Languages', 'History', 'Science', 'Technology', 'Programming', 'Volunteering',
-    'Wine Tasting', 'Coffee', 'Craft Beer', 'Cocktails', 'Fashion', 'Shopping', 'Collecting',
-    'Sports', 'Soccer', 'Basketball', 'Tennis', 'Golf', 'Baseball', 'Football', 'Hockey',
-    'Camping', 'Fishing', 'Hunting', 'Skiing', 'Snowboarding', 'Surfing', 'Sailing', 'Kayaking',
-    'Meditation', 'Mindfulness', 'Astrology', 'Tarot', 'Spirituality', 'Philosophy', 'Psychology'
+    'Reading', 'Writing', 'Photography', 'Cooking', 'Hiking', 'Running', 'Yoga', 'Dancing',
+    'Gaming', 'Board Games', 'Music', 'Movies', 'Travel', 'Art', 'Sports', 'Wine Tasting',
+    'Coffee', 'Fashion', 'Concerts', 'Museums'
   ];
 
   const dealbreakerOptions = [
