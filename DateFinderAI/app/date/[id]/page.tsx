@@ -95,10 +95,52 @@ export default function PartnerBPage() {
   const [showDateSelection, setShowDateSelection] = useState(false);
   const [dateOptions, setDateOptions] = useState<any[]>([]);
   const [selectedDateIds, setSelectedDateIds] = useState<string[]>([]);
+  const [isGeneratingDates, setIsGeneratingDates] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  // Loading messages for date generation
+  const loadingSteps = [
+    { 
+      message: "Analyzing your preferences...", 
+      detail: "Understanding what makes the perfect date for both of you",
+      icon: "🤔"
+    },
+    { 
+      message: "Finding amazing venues nearby...", 
+      detail: "Searching through hundreds of local spots and activities",
+      icon: "📍"
+    },
+    { 
+      message: "Checking restaurant reviews...", 
+      detail: "Making sure every suggestion meets our quality standards",
+      icon: "⭐"
+    },
+    { 
+      message: "Personalizing your date ideas...", 
+      detail: "Crafting experiences based on your shared interests",
+      icon: "💡"
+    },
+    { 
+      message: "Adding those special touches...", 
+      detail: "Including conversation starters and insider tips",
+      icon: "✨"
+    }
+  ];
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setIsGeneratingDates(true);
     setError(null);
+    
+    // Animate through loading steps
+    const stepInterval = setInterval(() => {
+      setLoadingStep(prev => {
+        if (prev < loadingSteps.length - 1) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 2000); // Change step every 2 seconds
 
     try {
       // First, submit Partner B data to generate date ideas
@@ -116,11 +158,23 @@ export default function PartnerBPage() {
         throw new Error(data.error || 'Failed to submit response');
       }
 
-      // Show date selection screen
-      setDateOptions(data.dateOptions || []);
-      setShowDateSelection(true);
+      // Clear the interval
+      clearInterval(stepInterval);
+      
+      // Show completion step briefly
+      setLoadingStep(loadingSteps.length - 1);
+      
+      // Wait a moment before showing results
+      setTimeout(() => {
+        setDateOptions(data.dateOptions || []);
+        setShowDateSelection(true);
+        setIsGeneratingDates(false);
+      }, 1500);
+      
     } catch (err) {
+      clearInterval(stepInterval);
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setIsGeneratingDates(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -316,6 +370,108 @@ export default function PartnerBPage() {
               </Button>
             </motion.div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show date generation loading screen
+  if (isGeneratingDates) {
+    return (
+      <div className="min-h-screen bg-gradient-romantic flex items-center justify-center">
+        <div className="container mx-auto px-4 py-8 max-w-2xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            {/* Main icon and title */}
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ 
+                duration: 2, 
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="text-6xl mb-6"
+            >
+              {loadingSteps[loadingStep].icon}
+            </motion.div>
+
+            <motion.h1 
+              key={loadingStep}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-3xl font-bold text-gray-800 mb-4"
+            >
+              Creating Your Perfect Date
+            </motion.h1>
+
+            {/* Current step */}
+            <motion.div
+              key={loadingStep}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white rounded-2xl shadow-lg p-6 mb-6"
+            >
+              <h2 className="text-xl font-semibold text-primary-700 mb-2">
+                {loadingSteps[loadingStep].message}
+              </h2>
+              <p className="text-gray-600">
+                {loadingSteps[loadingStep].detail}
+              </p>
+            </motion.div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-6">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ 
+                  width: `${((loadingStep + 1) / loadingSteps.length) * 100}%` 
+                }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="bg-gradient-to-r from-primary-500 to-accent-500 h-3 rounded-full"
+              />
+            </div>
+
+            {/* Step indicators */}
+            <div className="flex justify-center space-x-2 mb-8">
+              {loadingSteps.map((_, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ scale: 0.8, opacity: 0.5 }}
+                  animate={{ 
+                    scale: index <= loadingStep ? 1.2 : 0.8,
+                    opacity: index <= loadingStep ? 1 : 0.5
+                  }}
+                  className={`w-3 h-3 rounded-full ${
+                    index <= loadingStep 
+                      ? 'bg-primary-500' 
+                      : 'bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Fun fact while waiting */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="bg-primary-50 border border-primary-200 rounded-xl p-4"
+            >
+              <p className="text-sm text-primary-800 font-medium mb-1">
+                💝 Did you know?
+              </p>
+              <p className="text-sm text-primary-700">
+                We're analyzing over 100 local venues and activities to find the perfect matches for your unique preferences!
+              </p>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     );

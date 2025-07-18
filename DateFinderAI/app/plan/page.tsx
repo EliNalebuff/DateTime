@@ -25,6 +25,27 @@ export default function PlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  // Loading messages for link generation
+  const loadingSteps = [
+    { 
+      message: "Setting up your date session...", 
+      detail: "Creating a unique link just for you and your date",
+      icon: "🔗"
+    },
+    { 
+      message: "Securing your preferences...", 
+      detail: "Safely storing your date criteria and requirements",
+      icon: "🔒"
+    },
+    { 
+      message: "Preparing the experience...", 
+      detail: "Getting everything ready for your partner's input",
+      icon: "✨"
+    }
+  ];
 
   const [formData, setFormData] = useState<PartnerAData>({
     email: '',
@@ -92,7 +113,18 @@ export default function PlanPage() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setIsGeneratingLink(true);
     setError(null);
+
+    // Animate through loading steps
+    const stepInterval = setInterval(() => {
+      setLoadingStep(prev => {
+        if (prev < loadingSteps.length - 1) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 1500); // Change step every 1.5 seconds
 
     try {
       // Get auth token from localStorage
@@ -113,9 +145,22 @@ export default function PlanPage() {
         throw new Error(data.error || 'Failed to create date session');
       }
 
-      setShareUrl(data.shareUrl);
+      // Clear the interval
+      clearInterval(stepInterval);
+      
+      // Show completion step briefly
+      setLoadingStep(loadingSteps.length - 1);
+      
+      // Wait a moment before showing results
+      setTimeout(() => {
+        setShareUrl(data.shareUrl);
+        setIsGeneratingLink(false);
+      }, 1000);
+      
     } catch (err) {
+      clearInterval(stepInterval);
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setIsGeneratingLink(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -155,6 +200,107 @@ export default function PlanPage() {
     center: { x: 0, opacity: 1 },
     exit: { x: -300, opacity: 0 }
   };
+
+  if (isGeneratingLink) {
+    return (
+      <div className="min-h-screen bg-gradient-romantic flex items-center justify-center">
+        <div className="container mx-auto px-4 py-8 max-w-2xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            {/* Main icon and title */}
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ 
+                duration: 2, 
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="text-6xl mb-6"
+            >
+              {loadingSteps[loadingStep].icon}
+            </motion.div>
+
+            <motion.h1 
+              key={loadingStep}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-3xl font-bold text-gray-800 mb-4"
+            >
+              Creating Your Date Link
+            </motion.h1>
+
+            {/* Current step */}
+            <motion.div
+              key={loadingStep}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white rounded-2xl shadow-lg p-6 mb-6"
+            >
+              <h2 className="text-xl font-semibold text-primary-700 mb-2">
+                {loadingSteps[loadingStep].message}
+              </h2>
+              <p className="text-gray-600">
+                {loadingSteps[loadingStep].detail}
+              </p>
+            </motion.div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-6">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ 
+                  width: `${((loadingStep + 1) / loadingSteps.length) * 100}%` 
+                }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="bg-gradient-to-r from-primary-500 to-accent-500 h-3 rounded-full"
+              />
+            </div>
+
+            {/* Step indicators */}
+            <div className="flex justify-center space-x-2 mb-8">
+              {loadingSteps.map((_, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ scale: 0.8, opacity: 0.5 }}
+                  animate={{ 
+                    scale: index <= loadingStep ? 1.2 : 0.8,
+                    opacity: index <= loadingStep ? 1 : 0.5
+                  }}
+                  className={`w-3 h-3 rounded-full ${
+                    index <= loadingStep 
+                      ? 'bg-primary-500' 
+                      : 'bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Fun tip while waiting */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="bg-primary-50 border border-primary-200 rounded-xl p-4"
+            >
+              <p className="text-sm text-primary-800 font-medium mb-1">
+                💡 Pro tip:
+              </p>
+              <p className="text-sm text-primary-700">
+                Your link will be ready to share in just a moment. Your date partner will get a personalized experience based on your preferences!
+              </p>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   if (shareUrl) {
     return (
