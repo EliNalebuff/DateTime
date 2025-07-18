@@ -624,10 +624,10 @@ async function getLocationCoordinates(location) {
 // Step 1: Generate search terms based on survey preferences
 async function generateSearchTerms(partnerA, partnerB) {
   const prompt = `
-    You are a date planning expert. Based on the survey responses below, generate 5 specific search terms that would help find suitable venues for a date. 
+    You are a date planning expert. Based on the survey responses below, generate 10 diverse search terms that would help find suitable venues for a date. 
     
     The search terms should be specific enough to find real venues (e.g., "Italian restaurants", "art museums", "bowling alleys", "coffee shops", "wine bars") 
-    rather than vague concepts. Consider their preferences for food, activities, vibe, and constraints.
+    rather than vague concepts. IMPORTANT: Ensure search terms are DIVERSE across different categories to create varied venue options.
 
     **Survey Preferences:**
     - Location: ${partnerA.location}
@@ -652,21 +652,33 @@ async function generateSearchTerms(partnerA, partnerB) {
     - Hobbies & Interests: ${[...(partnerB.hobbiesInterests || []), ...(partnerB.customHobbies ? partnerB.customHobbies.split(',').map(h => h.trim()).filter(h => h) : [])].join(', ') || 'None specified'}
     - Dealbreakers: ${partnerB.dealbreakers?.join(', ') || 'None specified'}
 
-    Return exactly 5 search terms that would find venues suitable for their date. Focus on:
-    1. Food venues (if they want food)
-    2. Activity venues (based on their vibe preferences and hobbies/interests)
-    3. Drink venues (if they want drinks)
-    4. Entertainment venues that align with their hobbies and interests
-    5. Unique venues that match their specific interests and activities
+    Return exactly 10 search terms that would find diverse venues suitable for their date. Distribute across these categories:
+    1. Main dining venues (1-2 terms based on loved cuisines)
+    2. Casual food venues (cafes, bakeries, ice cream shops)
+    3. Drink venues (bars, breweries, wine lounges)
+    4. Entertainment venues (theaters, live music, comedy clubs)
+    5. Activity venues (museums, galleries, bowling, mini golf, etc.)
+    6. Outdoor venues (parks, gardens, waterfronts, hiking trails)
+    7. Experience venues (cooking classes, workshops, tours)
+    8. Shopping/browsing venues (markets, bookstores, boutiques)
+    9. Wellness venues (spas, yoga studios, meditation centers)
+    10. Unique local venues (rooftops, speakeasies, historic sites)
+
+    **CRITICAL**: Ensure the 10 terms span different categories to maximize venue diversity!
 
     **Output Format (JSON):**
     {
       "searchTerms": [
         "Italian restaurants",
-        "art museums",
+        "coffee shops", 
         "wine bars",
-        "bowling alleys", 
-        "coffee shops"
+        "art museums",
+        "bowling alleys",
+        "waterfront parks",
+        "cooking classes",
+        "bookstores",
+        "rooftop lounges",
+        "live music venues"
       ]
     }
   `;
@@ -686,8 +698,8 @@ async function generateSearchTerms(partnerA, partnerB) {
     return parsed.searchTerms || [];
   } catch (error) {
     console.error('Error generating search terms:', error);
-    // Fallback search terms
-    return ['restaurants', 'cafes', 'entertainment venues', 'museums', 'parks'];
+    // Fallback search terms - diverse categories
+    return ['restaurants', 'cafes', 'bars', 'museums', 'parks', 'entertainment venues', 'bookstores', 'art galleries', 'music venues', 'markets'];
   }
 }
 
@@ -788,7 +800,7 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
     ].join(', ') || 'None specified'}
     - Dealbreakers: ${[...(partnerA.dealbreakers || []), ...(partnerB.dealbreakers || [])].join(', ') || 'None specified'}
 
-    **Available Venues (Top 15 Selected):**
+    **Available Venues (Top 2 from each search term, ~20 total):**
     ${allVenues.map(venue => {
       const status = venue.businessStatus === 'OPERATIONAL' ? 'Open' : venue.businessStatus || 'Unknown';
       const openNow = venue.openingHours?.open_now ? 'Currently Open' : venue.openingHours?.open_now === false ? 'Currently Closed' : 'Hours Unknown';
@@ -818,18 +830,20 @@ async function generateFinalDateIdeas(partnerA, partnerB, allVenues) {
 
     **Instructions:**
     1. **OPENING HOURS VERIFICATION (TOP PRIORITY)**: Before selecting ANY venue, check its opening hours against the selected date/time (${dayOfWeek} ${selectedTime}). ONLY include venues that will be open during this time period.
-    2. Create 3 distinct date ideas, each combining 2-3 specific venues from the list above
-    3. Ensure each date respects their budget, preferences, and constraints
-    4. **CRITICAL**: Calculate and consider travel distance between venues - keep venues within reasonable proximity (prefer venues within 2-3 miles of each other)
-    5. **Review Analysis**: Consider the reviews provided - prioritize venues with positive recent feedback and avoid those with concerning reviews
-    6. Create a logical flow between venues (proximity, timing, etc.)
-    7. Make each date unique in vibe and experience, incorporating their shared hobbies and interests
-    8. Use the EXACT venue names from the list above
-    9. Consider how their hobbies and interests can enhance each date experience
-    10. Prioritize venues that are currently operational and open when possible
-    11. **Cost Consideration**: If combining multiple venues, ensure total estimated cost stays within their budget
-    12. Include contact information for reservation purposes
-    13. **DOUBLE-CHECK**: Verify each selected venue's opening hours one more time before finalizing the date idea
+    2. **NO DUPLICATE VENUE TYPES (CRITICAL)**: Within each single date idea, NEVER use multiple venues of the same type or cuisine. For example, DO NOT combine "Mexican Restaurant A" with "Mexican Restaurant B" or "Coffee Shop A" with "Coffee Shop B" in the same date. Each venue in a date should serve a DIFFERENT purpose/category.
+    3. **VENUE DIVERSITY WITHIN EACH DATE**: Create complementary venue combinations that flow naturally, such as: dinner + activity, coffee + museum + park, wine tasting + art gallery, etc. Each venue should add a DIFFERENT element to the date experience.
+    4. Create 3 distinct date ideas, each combining 2-3 specific venues from the list above
+    5. Ensure each date respects their budget, preferences, and constraints
+    6. **CRITICAL**: Calculate and consider travel distance between venues - keep venues within reasonable proximity (prefer venues within 2-3 miles of each other)
+    7. **Review Analysis**: Consider the reviews provided - prioritize venues with positive recent feedback and avoid those with concerning reviews
+    8. Create a logical flow between venues (proximity, timing, etc.)
+    9. Make each date unique in vibe and experience, incorporating their shared hobbies and interests
+    10. Use the EXACT venue names from the list above
+    11. Consider how their hobbies and interests can enhance each date experience
+    12. Prioritize venues that are currently operational and open when possible
+    13. **Cost Consideration**: If combining multiple venues, ensure total estimated cost stays within their budget
+    14. Include contact information for reservation purposes
+    15. **DOUBLE-CHECK**: Verify each selected venue's opening hours one more time before finalizing the date idea
 
     **Output Format (JSON):**
     {
@@ -966,7 +980,7 @@ async function getVenueDetails(venues) {
   return detailedVenues;
 }
 
-// Step 3: Filter venues to top 15 using LLM
+// Step 3: Filter venues to top 15 using LLM (CURRENTLY UNUSED - replaced with top 2 per search term approach)
 async function filterTopVenues(partnerA, partnerB, allVenues) {
   const prompt = `
     You are a venue selection expert. From the list of venues below, select the 15 BEST venues for a date based on the couple's preferences and constraints.
@@ -1065,45 +1079,48 @@ async function generateDateIdeas(partnerA, partnerB) {
   try {
     console.log('Starting enhanced 5-step date idea generation process...');
     
-    // Step 1: Generate search terms
+    // Step 1: Generate 10 diverse search terms
     console.log('Step 1: Generating search terms...');
     const searchTerms = await generateSearchTerms(partnerA, partnerB);
     console.log('Generated search terms:', searchTerms);
 
-    // Step 2: Search Google Places for each term
-    console.log('Step 2: Searching Google Places...');
+    // Step 2: Search Google Places and select top 2 venues from each search term
+    console.log('Step 2: Searching Google Places and selecting top 2 from each term...');
     const priceLevel = mapBudgetToPriceLevel(partnerA.budget);
     const radius = partnerA.travelDistance || 10; // miles
     
-    const allVenues = [];
+    const selectedVenues = [];
     for (const searchTerm of searchTerms) {
       console.log(`Searching for: ${searchTerm}`);
       const venues = await searchGooglePlaces(searchTerm, partnerA.location, radius, priceLevel);
-      allVenues.push(...venues);
+      
+      // Select top 2 venues from this search term based on rating
+      const topVenuesFromThisTerm = venues
+        .filter(venue => venue.rating) // Only venues with ratings
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0)) // Sort by rating descending
+        .slice(0, 2); // Take top 2
+      
+      console.log(`Selected ${topVenuesFromThisTerm.length} venues from "${searchTerm}"`);
+      selectedVenues.push(...topVenuesFromThisTerm);
     }
     
-    console.log(`Found ${allVenues.length} total venues`);
+    console.log(`Found ${selectedVenues.length} total selected venues (top 2 from each search term)`);
 
-    // Remove duplicates based on name and address
-    const uniqueVenues = allVenues.filter((venue, index, self) => 
+    // Step 3: Remove duplicates from the ~20 selected venues
+    console.log('Step 3: Removing duplicates from selected venues...');
+    const uniqueVenues = selectedVenues.filter((venue, index, self) => 
       index === self.findIndex(v => v.name === venue.name && v.address === venue.address)
     );
     
-    console.log(`${uniqueVenues.length} unique venues after deduplication`);
+    console.log(`${uniqueVenues.length} unique venues after deduplication (target: ~20 venues)`);
 
-    // Step 3: Filter to top 15 venues using LLM
-    console.log('Step 3: Filtering to top 15 venues...');
-    const topVenues = await filterTopVenues(partnerA, partnerB, uniqueVenues);
-    
-    console.log(`Filtered to ${topVenues.length} top venues`);
-
-    // Step 4: Get detailed information for top venues
+    // Step 4: Get detailed information (reviews, hours, contact info) for ~20 venues
     console.log('Step 4: Getting detailed venue information...');
-    const detailedVenues = await getVenueDetails(topVenues);
+    const detailedVenues = await getVenueDetails(uniqueVenues);
     
     console.log(`Retrieved details for ${detailedVenues.length} venues`);
 
-    // Step 5: Generate final date ideas using detailed venue data with opening hours verification
+    // Step 5: Generate 3 final date ideas using detailed venue data with opening hours verification
     console.log('Step 5: Generating final date ideas with detailed data and opening hours verification...');
     const dateIdeas = await generateFinalDateIdeas(partnerA, partnerB, detailedVenues);
     
@@ -1111,7 +1128,7 @@ async function generateDateIdeas(partnerA, partnerB) {
     return dateIdeas.slice(0, 3); // Ensure we return exactly 3 ideas
 
   } catch (error) {
-    console.error('Error in 3-step date generation process:', error);
+    console.error('Error in 5-step date generation process:', error);
     // Fallback to original simple approach
     return [{
       id: 'fallback1',
