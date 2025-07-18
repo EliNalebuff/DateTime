@@ -136,7 +136,7 @@ export default function PlanPage() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.email && formData.location && formData.proposedTimeRanges.length > 0 && formData.dateDuration && formData.ageRange;
+        return !!(formData.email?.trim() && formData.location?.trim() && formData.proposedTimeRanges.length > 0 && formData.dateDuration && formData.ageRange);
       case 2:
         return formData.budget > 0;
       case 3:
@@ -146,7 +146,7 @@ export default function PlanPage() {
       case 5:
         return true; // About yourself step is optional, so always valid
       default:
-        return true;
+        return false;
     }
   };
 

@@ -167,11 +167,11 @@ export default function PartnerBPage() {
   const isStepValid = (step: number) => {
     switch (step) {
       case 1:
-        return formData.email && formData.selectedTimeRange && formData.ageRange;
+        return !!(formData.email?.trim() && formData.selectedTimeRange && formData.ageRange);
       case 2:
         return formData.budget > 0;
       case 3:
-        return formData.vibe.length > 0 && formData.alcoholPreference && formData.publicPrivate && formData.indoorOutdoor;
+        return formData.vibe.length > 0;
       case 4:
         return true; // Personal info is optional
       default:

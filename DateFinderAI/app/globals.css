@@ -63,6 +63,26 @@ a {
   @apply bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white font-medium py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 ease-in-out;
 }
 
+/* Enhanced disabled button styles */
+button:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-accent:disabled {
+  @apply opacity-50 cursor-not-allowed transform-none shadow-none;
+  background: #6b7280 !important; /* Force gray background when disabled */
+  background-image: none !important; /* Remove gradients when disabled */
+  border-color: #9ca3af !important; /* Gray border when disabled */
+  color: #f9fafb !important; /* Light text when disabled */
+}
+
+button:disabled:hover,
+.btn-primary:disabled:hover,
+.btn-secondary:disabled:hover,
+.btn-accent:disabled:hover {
+  @apply transform-none shadow-none;
+  background: #6b7280 !important; /* Maintain gray on hover when disabled */
+}
+
 /* Form styles */
 .form-input {
   @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ease-in-out;
@@ -187,5 +207,70 @@ a {
   .btn-secondary,
   .btn-accent {
     @apply py-2 px-4 text-sm;
+  }
+
+  /* Mobile form improvements */
+  .form-input {
+    @apply py-2.5 px-3 text-base; /* Larger touch targets and text on mobile */
+  }
+
+  /* Mobile dropdown improvements */
+  select.form-input {
+    @apply min-h-[44px]; /* iOS minimum touch target */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
+  }
+
+  /* Mobile suggestions dropdown */
+  .mobile-suggestions {
+    @apply fixed left-4 right-4 top-auto z-50;
+    max-height: 50vh;
+    margin-top: 4px;
+  }
+
+  /* Ensure dropdowns don't get cut off */
+  .mobile-suggestions button {
+    @apply py-4 px-4 min-h-[44px]; /* Better touch targets */
+  }
+
+  /* Text size adjustments for better readability */
+  .mobile-suggestions .text-sm {
+    @apply text-base;
+  }
+
+  /* Prevent zoom on input focus for iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+
+  /* Better spacing for mobile time pickers */
+  .grid.grid-cols-3.gap-2 {
+    @apply gap-3;
+  }
+
+  /* Mobile-specific button improvements */
+  button {
+    @apply min-h-[44px]; /* iOS touch target guidelines */
+  }
+
+  /* Better mobile card spacing */
+  .space-y-4 > * + * {
+    @apply mt-6;
+  }
+
+  /* Mobile autocomplete positioning fix */
+  .relative .mobile-suggestions {
+    position: fixed !important;
+    left: 1rem;
+    right: 1rem;
+    top: auto;
+    transform: none;
   }
 } 

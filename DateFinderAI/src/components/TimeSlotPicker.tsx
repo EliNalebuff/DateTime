@@ -138,7 +138,7 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
           ) : (
             <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col space-y-4 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Date
@@ -146,18 +146,26 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
                     <select
                       value={newSlot.date}
                       onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-0"
                     >
                       <option value="">Select a date</option>
-                      {nextWeekDates.map((date) => (
-                        <option key={date.toISOString()} value={date.toISOString().split('T')[0]}>
-                          {date.toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </option>
-                      ))}
+                      {nextWeekDates.map((date) => {
+                        // Format date as YYYY-MM-DD using local timezone to avoid UTC conversion issues
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const localDateString = `${year}-${month}-${day}`;
+                        
+                        return (
+                          <option key={localDateString} value={localDateString}>
+                            {date.toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   
@@ -168,7 +176,7 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
                     <select
                       value={newSlot.time}
                       onChange={(e) => setNewSlot({ ...newSlot, time: e.target.value })}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-0"
                     >
                       <option value="">Select a time</option>
                       {timeOptions.map((option) => (
@@ -180,11 +188,11 @@ export default function TimeSlotPicker({ selectedSlots, onChange, maxSlots = 5 }
                   </div>
                 </div>
                 
-                <div className="flex space-x-2">
+                <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
                   <button
                     onClick={addTimeSlot}
                     disabled={!newSlot.date || !newSlot.time}
-                    className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     <span>Add Time Slot</span>

@@ -17,6 +17,23 @@ const LocationInput: React.FC<LocationInputProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Detect if we're on mobile
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkIsMobile);
+    };
+  }, []);
 
   // Fetch location suggestions
   const fetchSuggestions = async (query: string) => {
@@ -101,6 +118,44 @@ const LocationInput: React.FC<LocationInputProps> = ({
     };
   }, []);
 
+  // Improved reverse geocoding for current location
+  const reverseGeocode = async (latitude: number, longitude: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=10`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const address = data.address || {};
+        
+        // Try to extract meaningful location info in order of preference
+        const city = address.city || address.town || address.village || address.hamlet || address.municipality;
+        const state = address.state || address.region;
+        const country = address.country;
+        
+        // Return the most appropriate format
+        if (city && state && country === 'United States') {
+          return `${city}, ${state}`;
+        } else if (city && country) {
+          return `${city}, ${country}`;
+        } else if (address.suburb && state && country === 'United States') {
+          return `${address.suburb}, ${state}`;
+        } else if (data.display_name) {
+          // Extract first two meaningful parts from display name
+          const parts = data.display_name.split(',').map((part: string) => part.trim());
+          return parts.slice(0, 2).join(', ');
+        }
+      }
+      
+      // If all else fails, format coordinates nicely
+      return `Location: ${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      return `Location: ${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
+    }
+  };
+
   const handleGetLocation = async () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser');
@@ -113,38 +168,37 @@ const LocationInput: React.FC<LocationInputProps> = ({
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 15000, // Increased timeout for mobile
           maximumAge: 300000,
         });
       });
 
       const { latitude, longitude } = position.coords;
       
-      // Reverse geocode to get city name
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          const city = data.address?.city || data.address?.town || data.address?.village || 
-                     data.address?.hamlet || data.display_name?.split(',')[0] || 
-                     `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          onChange(city);
-        } else {
-          // Fallback to coordinates if reverse geocoding fails
-          const locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          onChange(locationString);
-        }
-      } catch (error) {
-        console.error('Error reverse geocoding:', error);
-        const locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-        onChange(locationString);
-      }
+      // Use improved reverse geocoding
+      const locationString = await reverseGeocode(latitude, longitude);
+      onChange(locationString);
+      
     } catch (error) {
       console.error('Error getting location:', error);
-      alert('Unable to get your location. Please enter it manually.');
+      if (error instanceof GeolocationPositionError) {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            alert('Location access was denied. Please enable location permissions and try again.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            alert('Location information is unavailable. Please enter your location manually.');
+            break;
+          case error.TIMEOUT:
+            alert('Location request timed out. Please try again or enter your location manually.');
+            break;
+          default:
+            alert('An error occurred while getting your location. Please enter it manually.');
+            break;
+        }
+      } else {
+        alert('Unable to get your location. Please enter it manually.');
+      }
     } finally {
       setIsGettingLocation(false);
     }
@@ -179,9 +233,20 @@ const LocationInput: React.FC<LocationInputProps> = ({
           </button>
         )}
         
-        {/* Suggestions Dropdown */}
+        {/* Suggestions Dropdown - Mobile Optimized */}
         {showSuggestions && (suggestions.length > 0 || isLoadingSuggestions) && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <div 
+            ref={suggestionsRef}
+            className={cn(
+              "bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50",
+              isMobile 
+                ? "fixed left-4 right-4 top-auto mobile-suggestions"
+                : "absolute w-full mt-1"
+            )}
+            style={isMobile ? { 
+              top: inputRef.current ? inputRef.current.getBoundingClientRect().bottom + window.scrollY + 4 : 'auto' 
+            } : {}}
+          >
             {isLoadingSuggestions ? (
               <div className="px-4 py-3 text-gray-500 text-sm flex items-center">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -193,11 +258,12 @@ const LocationInput: React.FC<LocationInputProps> = ({
                   key={index}
                   type="button"
                   onClick={() => handleSuggestionSelect(suggestion)}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none 
+                             border-b border-gray-100 last:border-b-0 active:bg-gray-100"
                 >
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                    <span className="text-sm text-gray-700">{suggestion}</span>
+                    <span className="text-sm text-gray-700 break-words">{suggestion}</span>
                   </div>
                 </button>
               ))

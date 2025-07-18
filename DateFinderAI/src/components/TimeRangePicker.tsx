@@ -212,15 +212,15 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
           </div>
 
           {/* Time Range Selection */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             {/* Start Time */}
             <div>
               <label className="block text-sm text-gray-600 mb-2">From:</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <select
                   value={newRange.startHour}
                   onChange={(e) => setNewRange(prev => ({ ...prev, startHour: e.target.value }))}
-                  className="form-input text-sm"
+                  className="form-input text-sm min-w-0"
                 >
                   <option value="">Hour</option>
                   {hourOptions.map((option) => (
@@ -233,7 +233,7 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 <select
                   value={newRange.startMinute}
                   onChange={(e) => setNewRange(prev => ({ ...prev, startMinute: e.target.value }))}
-                  className="form-input text-sm"
+                  className="form-input text-sm min-w-0"
                 >
                   {minuteOptions.map((option) => (
                     <option key={`start-minute-${option.value}`} value={option.value}>
@@ -245,7 +245,7 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 <select
                   value={newRange.startPeriod}
                   onChange={(e) => setNewRange(prev => ({ ...prev, startPeriod: e.target.value as 'AM' | 'PM' }))}
-                  className="form-input text-sm"
+                  className="form-input text-sm min-w-0"
                 >
                   <option value="AM">AM</option>
                   <option value="PM">PM</option>
@@ -256,11 +256,11 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
             {/* End Time */}
             <div>
               <label className="block text-sm text-gray-600 mb-2">To:</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <select
                   value={newRange.endHour}
                   onChange={(e) => setNewRange(prev => ({ ...prev, endHour: e.target.value }))}
-                  className="form-input text-sm"
+                  className="form-input text-sm min-w-0"
                 >
                   <option value="">Hour</option>
                   {hourOptions.map((option) => (
@@ -273,7 +273,7 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 <select
                   value={newRange.endMinute}
                   onChange={(e) => setNewRange(prev => ({ ...prev, endMinute: e.target.value }))}
-                  className="form-input text-sm"
+                  className="form-input text-sm min-w-0"
                 >
                   {minuteOptions.map((option) => (
                     <option key={`end-minute-${option.value}`} value={option.value}>
@@ -285,7 +285,7 @@ const TimeRangePicker: React.FC<TimeRangePickerProps> = ({
                 <select
                   value={newRange.endPeriod}
                   onChange={(e) => setNewRange(prev => ({ ...prev, endPeriod: e.target.value as 'AM' | 'PM' }))}
-                  className="form-input text-sm"
+                  className="form-input text-sm min-w-0"
                 >
                   <option value="AM">AM</option>
                   <option value="PM">PM</option>
